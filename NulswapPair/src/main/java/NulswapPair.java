@@ -75,6 +75,9 @@ public class NulswapPair implements Contract{
         require(Msg.sender().equals(factory), "UniswapV2: FORBIDDEN"); // sufficient check
         token0 = _token0;
         token1 = _token1;
+
+        String _asset =  Utils.deploy(new String[]{ "lp", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgzFMHJST31LPXG59utwyzyYX6rtPKx"), new String[]{"wNuls", "WNULS", "1", "8"});
+        this.lp = new Address(_asset);
     }
 
     public static BigInteger Q112 = BigInteger.valueOf(2).pow(112);
