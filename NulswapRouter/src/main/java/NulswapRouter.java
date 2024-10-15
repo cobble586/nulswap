@@ -25,11 +25,9 @@ public class NulswapRouter implements Contract{
     Address public WNULS;                       // WNULS
     private static Address BURNER_ADDR = new Address("");
 
-
-
-    public NulswapRouter(Address _factory, Address _WETH){
+    public NulswapRouter(Address _factory, Address _WNULS){
         factory = _factory;
-        WETH = _WETH;
+        WNULS = _WNULS;
     }
 
     protected void ensure(BigInteger deadline) {
@@ -59,8 +57,9 @@ public class NulswapRouter implements Contract{
             IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
         (uint reserveA, uint reserveB) = UniswapV2Library.getReserves(factory, tokenA, tokenB);
-        if (reserveA == 0 && reserveB == 0) {
-            (amountA, amountB) = (amountADesired, amountBDesired);
+        if (reserveA.compareTo(BigInteger.ZERO) == 0 && reserveBcompareTo(BigInteger.ZERO) == 0) {
+            BigInteger amountA = amountADesired;
+            BigInteger amountB = amountBDesired;
         } else {
             BigInteger amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {
@@ -88,7 +87,11 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
-        (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        BigInteger addLiqRes = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+
+        String[] arrOfStr = addLiqRes.split(",", 2);
+        BigInteger amountA = new BigInteger(arrOfStr[0]);
+        BigInteger amountB = new BigInteger(arrOfStr[1]);
 
         Address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
 
@@ -175,35 +178,6 @@ public class NulswapRouter implements Contract{
         safeTransferETH(to, amountETH);
         return amountToken+","+amountETH;
     }
-    function removeLiquidityWithPermit(
-            address tokenA,
-            address tokenB,
-            uint liquidity,
-            uint amountAMin,
-            uint amountBMin,
-            address to,
-            uint deadline,
-            bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external override returns (uint amountA, uint amountB) {
-        address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-        uint value = approveMax ? uint(-1) : liquidity;
-        IUniswapV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
-        (amountA, amountB) = removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
-    }
-    function removeLiquidityETHWithPermit(
-            address token,
-            uint liquidity,
-            uint amountTokenMin,
-            uint amountETHMin,
-            address to,
-            uint deadline,
-            bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external override returns (uint amountToken, uint amountETH) {
-        address pair = UniswapV2Library.pairFor(factory, token, WETH);
-        uint value = approveMax ? uint(-1) : liquidity;
-        IUniswapV2Pair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
-        (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
-    }
 
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
@@ -241,19 +215,22 @@ public class NulswapRouter implements Contract{
         TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
     }
-    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-    external
-            override
-    payable
-    ensure(deadline)
-    returns (uint[] memory amounts)
+
+    @Payable
+   public BigInteger[] swapExactETHForTokens(
+           uint amountOutMin,
+           address[] calldata path,
+           address to,
+           uint deadline)
     {
+        ensure(deadline);
         require(path[0] == WETH, 'UniswapV2Router: INVALID_PATH');
         amounts = UniswapV2Library.getAmountsOut(factory, msg.value, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
+        return amounts;
     }
 
     public BigInteger[] swapTokensForExactETH(
@@ -277,26 +254,29 @@ public class NulswapRouter implements Contract{
     public BigInteger[] swapExactTokensForETH(
             uint amountIn,
             uint amountOutMin,
-            address[] calldata path,
+            Address[] path,
             address to,
             uint deadline
     ){
         ensure(deadline);
-        require(path[path.length - 1] == WETH, 'UniswapV2Router: INVALID_PATH');
+        require(path[path.length - 1].equals(WNULS), 'UniswapV2Router: INVALID_PATH');
         amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
-        TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
+        safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, address(this));
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
-        TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
+        safeTransferETH(to, amounts[amounts.length - 1]);
         return amounts;
     }
 
     @Payable
-    public String swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
-    ensure(deadline)
-    returns (uint[] memory amounts)
-    {
+    public BigInteger[] swapETHForExactTokens(
+            BigInteger amountOut,
+            address[] calldata path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
         require(path[0] == WETH, 'UniswapV2Router: INVALID_PATH');
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= msg.value, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
@@ -304,16 +284,26 @@ public class NulswapRouter implements Contract{
         assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
         if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]); // refund dust eth, if any
+        return amounts;
     }
 
     @View
-    public BigInteger quote(BigInteger amountA, BigInteger reserveA, BigInteger reserveB) public pure override returns (uint amountB) {
-        return UniswapV2Library.quote(amountA, reserveA, reserveB);
+    public BigInteger quote(BigInteger amountA, BigInteger reserveA, BigInteger reserveB){
+        require(amountA > 0, 'UniswapV2Library: INSUFFICIENT_AMOUNT');
+        require(reserveA > 0 && reserveB > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        BigInteger amountB = amountA.mul(reserveB) / reserveA;
+        return amountB;
     }
 
     @View
-    public BigInteger getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) public pure override returns (uint amountOut) {
-        return UniswapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
+    public BigInteger getAmountOut(uint amountIn, uint reserveIn, uint reserveOut){
+        require(amountIn > 0, 'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+        uint amountInWithFee = amountIn.multiply(997);
+        uint numerator = amountInWithFee.multiply(reserveOut);
+        uint denominator = reserveIn.multiply(1000).add(amountInWithFee);
+        amountOut = numerator / denominator;
+        return amountOut;
     }
 
     @View
