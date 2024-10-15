@@ -34,6 +34,7 @@ public class NulswapFactory extends Ownable implements Contract{
 
     private Address feeTo;
     private Address feeToSetter;
+    private static Address BURNER_ADDR = new Address("");
 
     private Map<Address, Map<Address, Address>> getPair = new HashMap<Address, Map<Address, Address>>();
 
@@ -41,6 +42,15 @@ public class NulswapFactory extends Ownable implements Contract{
 
     public NulswapFactory(Address _feeToSetter){
         feeToSetter = _feeToSetter;
+    }
+
+    @View
+    public Address getPair(token0, token1){
+        if(getPair.get(token0) != null) {
+            if(getPair.get(token0).get(token1) != null)
+                return getPair.get(token0).get(token1);
+        }
+        return BURNER_ADDR;
     }
 
     @View
