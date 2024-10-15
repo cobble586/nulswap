@@ -80,7 +80,7 @@ public class NulswapRouter implements Contract{
                 amountB = amountBDesired;
             }
         }
-        return amountA+","+amountB;
+        return amountA + "," + amountB;
     }
 
 
@@ -108,7 +108,7 @@ public class NulswapRouter implements Contract{
 
         liquidity = IUniswapV2Pair(pair).mint(to);
 
-        return amountA+","+amountB+","+liquidity;
+        return amountA + "," + amountB  + "," + liquidity;
     }
 
     @Payable
@@ -153,32 +153,34 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
-        address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-        IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        Address pair = pairFor(factory, tokenA, tokenB);
+        safeTransferFrom(pair, Msg.sender(), pair, liquidity);
+
         (uint amount0, uint amount1) = IUniswapV2Pair(pair).burn(to);
-        (address token0,) = UniswapV2Library.sortTokens(tokenA, tokenB);
+
+        (address token0,) = sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
-        require(amountA >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
-        require(amountB >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
-        return amountA+","+amountB;
+        require(amountA.compareTo(amountAMin) >= 0, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
+        require(amountB.compareTo(amountBMin) >= 0, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
+        return amountA + "," + amountB;
     }
 
     public String removeLiquidityETH(
             Address token,
-            uint liquidity,
-            uint amountTokenMin,
-            uint amountETHMin,
+            BigInteger liquidity,
+            BigInteger amountTokenMin,
+            BigInteger amountETHMin,
             Address to,
-            uint deadline
-    )   returns (uint amountToken, uint amountETH) {
+            BigInteger deadline
+    ) {
         ensure(deadline);
-        (amountToken, amountETH) = removeLiquidity(
+        (BigInteger amountToken, BigInteger amountETH) = removeLiquidity(
                 token,
                 WETH,
                 liquidity,
                 amountTokenMin,
                 amountETHMin,
-                address(this),
+                Msg.address(),
                 deadline
         );
         safeTransfer(token, to, amountToken);
@@ -211,17 +213,20 @@ public class NulswapRouter implements Contract{
         TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
     }
-    function swapTokensForExactTokens(
+
+    public BigInteger[] swapTokensForExactTokens(
             uint amountOut,
             uint amountInMax,
-            address[] calldata path,
-            address to,
+            Address[] calldata path,
+            Address to,
             uint deadline
-    ) external override ensure(deadline) returns (uint[] memory amounts) {
+    ) external override  returns (uint[] memory amounts) {
+        ensure(deadline);
         amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
         TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
+        return amounts;
     }
 
     @Payable
