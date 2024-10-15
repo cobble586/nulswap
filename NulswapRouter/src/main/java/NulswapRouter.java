@@ -222,23 +222,23 @@ public class NulswapRouter implements Contract{
             uint deadline
     ) external override  returns (uint[] memory amounts) {
         ensure(deadline);
-        amounts = UniswapV2Library.getAmountsIn(factory, amountOut, path);
+        amounts = getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
-        TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
+        safeTransferFrom(path[0], Msg.sender(), pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
         return amounts;
     }
 
     @Payable
    public BigInteger[] swapExactETHForTokens(
-           uint amountOutMin,
-           address[] calldata path,
-           address to,
-           uint deadline)
+           BigInteger amountOutMin,
+           Address[] calldata path,
+           Address to,
+           BigInteger deadline)
     {
         ensure(deadline);
-        require(path[0] == WETH, 'UniswapV2Router: INVALID_PATH');
-        amounts = getAmountsOut(factory, msg.value, path);
+        require(path[0].equals(WNULS), 'UniswapV2Router: INVALID_PATH');
+        BigInteger[] amounts = getAmountsOut(factory, msg.value, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]));
@@ -247,29 +247,29 @@ public class NulswapRouter implements Contract{
     }
 
     public BigInteger[] swapTokensForExactETH(
-            uint amountOut,
-            uint amountInMax,
-            address[] calldata path,
+            BigInteger amountOut,
+            BigInteger amountInMax,
+            Address[] path,
             Address to,
-            uint deadline)
+            BigInteger deadline)
     {
         ensure(deadline);
-        require(path[path.length - 1] == WETH, 'UniswapV2Router: INVALID_PATH');
+        require(path[path.length - 1].equals(WNULS), 'UniswapV2Router: INVALID_PATH');
         amounts = getAmountsIn(factory, amountOut, path);
-        require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
-        safeTransferFrom(path[0], Msg.sender(), UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
-        _swap(amounts, path, address(this));
+        require(amounts[0].compareTo(amountInMax) <= 0, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
+        safeTransferFrom(path[0], Msg.sender(), pairFor(factory, path[0], path[1]), amounts[0]);
+        _swap(amounts, path, Msg.address());
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         safeTransferETH(to, amounts[amounts.length - 1]);
         return amounts;
     }
 
     public BigInteger[] swapExactTokensForETH(
-            uint amountIn,
-            uint amountOutMin,
+            BigInteger amountIn,
+            BigInteger amountOutMin,
             Address[] path,
-            address to,
-            uint deadline
+            Address to,
+            BigInteger deadline
     ){
         ensure(deadline);
         require(path[path.length - 1].equals(WNULS), 'UniswapV2Router: INVALID_PATH');
@@ -285,7 +285,7 @@ public class NulswapRouter implements Contract{
     @Payable
     public BigInteger[] swapETHForExactTokens(
             BigInteger amountOut,
-            address[] calldata path,
+            Address[] calldata path,
             Address to,
             BigInteger deadline
     ){
