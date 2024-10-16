@@ -121,7 +121,8 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     )  returns (uint amountToken, uint amountETH, uint liquidity) {
         ensure(deadline);
-        (amountToken, amountETH) = _addLiquidity(
+
+        BigInteger addLiqRes = _addLiquidity(
                 token,
                 WETH,
                 amountTokenDesired,
@@ -129,17 +130,23 @@ public class NulswapRouter implements Contract{
                 amountTokenMin,
                 amountETHMin
         );
-        Address pair = UniswapV2Library.pairFor(factory, token, WETH);
+
+        String[] arrOfStr = addLiqRes.split(",", 2);
+        BigInteger amountToken = new BigInteger(arrOfStr[0]);
+        BigInteger amountETH = new BigInteger(arrOfStr[1]);
+
+        Address pair = pairFor(factory, token, WETH);
         safeTransferFrom(token, Msg.sender(), pair, amountToken);
 
         depositNuls(amountETH);
 
         safeTransfer(WNULS, pair, amountETH);
+
         BigInteger liquidity = IUniswapV2Pair(pair).mint(to);
 
-        if (msg.value > amountETH) safeTransferETH(msg.sender(), Msg.value() - amountETH); // refund dust eth, if any
+        if (Msg.value().compareTo(amountETH) > 0) safeTransferETH(Msg.sender(), Msg.value().subtract(amountETH)); // refund dust eth, if any
 
-        return amountToken+","+amountETH+","+liquidity;
+        return amountToken + "," + amountETH + "," + liquidity;
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -153,6 +160,7 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+
         Address pair = pairFor(factory, tokenA, tokenB);
         safeTransferFrom(pair, Msg.sender(), pair, liquidity);
 
@@ -186,44 +194,53 @@ public class NulswapRouter implements Contract{
         safeTransfer(token, to, amountToken);
         IWETH(WETH).withdraw(amountETH);
         safeTransferETH(to, amountETH);
-        return amountToken+","+amountETH;
+        return amountToken + "," + amountETH;
     }
 
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
-    function _swap(uint[] memory amounts, address[] memory path, address _to) private {
-        for (uint i; i < path.length - 1; i++) {
-            (address input, address output) = (path[i], path[i + 1]);
-            (address token0,) = UniswapV2Library.sortTokens(input, output);
-            uint amountOut = amounts[i + 1];
+    private void _swap(BigInteger[] memory amounts, Address[] path, Address _to){
+
+        for (int i; i < path.length - 1; i++) {
+
+            Address input  = path[i];
+            Address output = path[i + 1];
+
+
+            (address token0,) = sortTokens(input, output);
+            BigInteger amountOut = amounts[i + 1];
             (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOut) : (amountOut, uint(0));
-            address to = i < path.length - 2 ? UniswapV2Library.pairFor(factory, output, path[i + 2]) : _to;
-            IUniswapV2Pair(UniswapV2Library.pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, new bytes(0));
+            Address to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to;
+            IUniswapV2Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, new bytes(0));
         }
+
     }
-    function swapExactTokensForTokens(
-            uint amountIn,
-            uint amountOutMin,
-            address[] calldata path,
-            address to,
-            uint deadline
-    ) external override ensure(deadline) returns (uint[] memory amounts) {
-        amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
-        require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
-        TransferHelper.safeTransferFrom(path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
+
+    public BigInteger[] swapExactTokensForTokens(
+            BigInteger amountIn,
+            BigInteger amountOutMin,
+            Address[] calldata path,
+            Address to,
+            BigInteger deadline
+    )  {
+        ensure(deadline);
+        BigInteger[] amounts = getAmountsOut(factory, amountIn, path);
+        require(amounts[amounts.length - 1].compareTo(amountOutMin) >= 0, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
+        safeTransferFrom(path[0], Msg.sender(), UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
+        return amounts;
     }
 
     public BigInteger[] swapTokensForExactTokens(
-            uint amountOut,
-            uint amountInMax,
+            BigInteger amountOut,
+            BigInteger amountInMax,
             Address[] calldata path,
             Address to,
-            uint deadline
+            BigInteger deadline
     ) external override  returns (uint[] memory amounts) {
         ensure(deadline);
         amounts = getAmountsIn(factory, amountOut, path);
-        require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
+        require(amounts[0].compareTo(BigInteger) <= 0, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
         safeTransferFrom(path[0], Msg.sender(), pairFor(factory, path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
         return amounts;
@@ -290,21 +307,34 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
-        require(path[0] == WETH, 'UniswapV2Router: INVALID_PATH');
-        amounts = getAmountsIn(factory, amountOut, path);
-        require(amounts[0] <= msg.value, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
+
+        require(path[0].equals(WNULS), 'UniswapV2Router: INVALID_PATH');
+        BigInteger[] amounts = getAmountsIn(factory, amountOut, path);
+        require(amounts[0].compareTo(Msg.value()) <= 0, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
+
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
-        if (msg.value > amounts[0]) safeTransferETH(msg.sender, msg.value - amounts[0]); // refund dust eth, if any
+
+        if (Msg.value().compareTo(amounts[0]) > 0) safeTransferETH(Msg.sender(9), Msg.value().subtract(amounts[0])); // refund dust eth, if any
         return amounts;
     }
 
     // returns sorted token addresses, used to handle return values from pairs sorted in this order
-    function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
+    private String sortTokens(Address tokenA, Address tokenB){
         require(!tokenA.equals(tokenB), 'UniswapV2Library: IDENTICAL_ADDRESSES');
-        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-        require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS');
+
+        Address token0, token1;
+        if(tokenA.hashCode() < tokenB.hashCode()){
+            token0 = tokenA;
+            token1 = tokenB;
+        }else{
+            token0 = tokenB;
+            token1 = tokenA;
+        }
+
+        require(token0 != null, 'UniswapV2Library: ZERO_ADDRESS');
+        return token0 + "," + token1;
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
@@ -353,12 +383,12 @@ public class NulswapRouter implements Contract{
 
     @View
     function getAmountsOut(uint amountIn, address[] memory path) public view override returns (uint[] memory amounts) {
-        return UniswapV2Library.getAmountsOut(factory, amountIn, path);
+        return getAmountsOut(factory, amountIn, path);
     }
 
     @View
     function getAmountsIn(uint amountOut, address[] memory path) public view override returns (uint[] memory amounts) {
-        return UniswapV2Library.getAmountsIn(factory, amountOut, path);
+        return getAmountsIn(factory, amountOut, path);
     }
 
 
@@ -372,6 +402,11 @@ public class NulswapRouter implements Contract{
         String[][] argsM = new String[][]{};
         return new BigInteger(token.callWithReturnValue("totalSupply", "", argsM, BigInteger.ZERO));
 
+    }
+
+    private void safeGetPair(@Required Address tokenA, @Required Address tokenB){
+        String[][] argsM = new String[][]{new String[]{tokenA.toString()}, new String[]{tokenB.toString()}};
+        return new Address(factory.callWithReturnValue("getPair", "", argsM, BigInteger.ZERO));
     }
 
     private void safeTransfer(@Required Address token, @Required Address recipient, @Required BigInteger amount){

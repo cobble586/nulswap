@@ -45,7 +45,7 @@ public class NulswapFactory extends Ownable implements Contract{
     }
 
     @View
-    public Address getPair(token0, token1){
+    public Address getPair(Address token0,Address token1){
         if(getPair.get(token0) != null) {
             if(getPair.get(token0).get(token1) != null)
                 return getPair.get(token0).get(token1);
