@@ -372,10 +372,25 @@ public class NulswapRouter implements Contract{
 
     // fetches and sorts the reserves for a pair
     @View
-    private getReserves(address factory, address tokenA, address tokenB) internal view returns (uint reserveA, uint reserveB) {
-        (address token0,) = sortTokens(tokenA, tokenB);
-        (uint reserve0, uint reserve1,) = IUniswapV2Pair(safeGetPair(tokenA, tokenB)).getReserves();
-        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+    private String getReserves(Address factory, Address tokenA, Address tokenB)
+
+    {
+        String[] arrOfStr2 = sortTokens(tokenA, tokenB).split(",", 2);
+        Address token0 = new BigInteger(arrOfStr2[0]);
+
+        String[] arrOfStr3 = safeGetReserves(safeGetPair(tokenA, tokenB)).split(",", 3);
+        BigInteger reserve0 = new BigInteger(arrOfStr3[0]);
+        BigInteger reserve1 = new BigInteger(arrOfStr3[1]);
+
+        if (tokenA.equals(token0)){
+            reserveA = reserve0;
+            reserveB = reserve1;
+        } else {
+            reserveA = reserve1;
+            reserveB = reserve0;
+        }
+
+        return reserveA + "," + reserveB;
     }
 
 
@@ -423,6 +438,11 @@ public class NulswapRouter implements Contract{
     private BigInteger safeSwap(@Required Address pair, BigInteger amount0Out, BigInteger amount1Out, @Required Address to){
         String[][] argsM = new String[][]{new String[]{amount0Out.toString()}, new String[]{amount1Out.toString()}, new String[]{to.toString()}};
         return new BigInteger(pair.callWithReturnValue("swap", "", argsM, BigInteger.ZERO));
+    }
+
+    private String safeGetReserves(@Required Address pair){
+        String[][] argsM = new String[][]{};
+        return pair.callWithReturnValue("getReserves", "", argsM, BigInteger.ZERO);
     }
 
     private BigInteger safeMint(@Required Address pair, @Required Address to){
