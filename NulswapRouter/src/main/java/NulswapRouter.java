@@ -53,7 +53,7 @@ public class NulswapRouter implements Contract{
     @Payable
     @Override
     public void _payable() {
-        require(Msg.sender().equals(WNULS), "Only Nuls"); // only accept ETH via fallback from the WETH contract
+        require(Msg.sender().equals(WNULS), "NulswapRouter: Only WNULS can call payable"); // only accept NULS via fallback from the WETH contract
     }
 
     /**
@@ -290,10 +290,9 @@ public class NulswapRouter implements Contract{
             Address input  = path[i];
             Address output = path[i + 1];
 
-            String[] arrOfStr2 = sortTokens(input, output).split(",", 2);
-            Address token0 = new Address(arrOfStr2[0]);
-
-            BigInteger amountOut = amounts[i + 1];
+            String[] arrOfStr2      = sortTokens(input, output).split(",", 2);
+            Address token0          = new Address(arrOfStr2[0]);
+            BigInteger amountOut    = amounts[i + 1];
 
             BigInteger amount0Out, amount1Out;
             if(input.equals(token0)){
@@ -312,18 +311,30 @@ public class NulswapRouter implements Contract{
 
     }
 
+    /**
+     *
+     *
+     * @param amountIn
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     * */
     public BigInteger[] swapExactTokensForTokens(
             BigInteger amountIn,
             BigInteger amountOutMin,
             Address[] path,
             Address to,
             BigInteger deadline
-    )  {
+    ){
         ensure(deadline);
+
         BigInteger[] amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1].compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         safeTransferFrom(path[0], Msg.sender(), safeGetPair( path[0], path[1]), amounts[0]);
+
         _swap(amounts, path, to);
+
         return amounts;
     }
 
@@ -585,6 +596,11 @@ public class NulswapRouter implements Contract{
         return amountIn;
     }
 
+    /**
+     *
+     * @param amountIn
+     * @param path
+     * */
     @View
     public BigInteger[] getAmountsOut(BigInteger amountIn, Address[] path){
         require(path.length >= 2, "UniswapV2Library: INVALID_PATH");
@@ -603,6 +619,11 @@ public class NulswapRouter implements Contract{
         return amounts;
     }
 
+    /**
+     *
+     * @param amountOut
+     * @param path
+     * */
     @View
     public BigInteger[] getAmountsIn(BigInteger amountOut, Address[] path) {
         require(path.length >= 2, "UniswapV2Library: INVALID_PATH");
@@ -622,6 +643,11 @@ public class NulswapRouter implements Contract{
     }
 
 
+    /**
+     *
+     * @param token
+     * @param account
+     * */
     private BigInteger safeBalanceOf(@Required Address token, @Required Address account){
         String[][] argsM = new String[][]{new String[]{account.toString()}};
         return new BigInteger(token.callWithReturnValue("balanceOf", "", argsM, BigInteger.ZERO));
@@ -708,7 +734,7 @@ public class NulswapRouter implements Contract{
     ){
         String[][] argsM = new String[][]{new String[]{recipient.toString()}, new String[]{amount.toString()}};
         boolean b = new Boolean(token.callWithReturnValue("transfer", "", argsM, BigInteger.ZERO));
-        require(b, "NEII-V1: Failed to transfer");
+        require(b, "NulswapRouter: Failed to transfer");
         return b;
     }
 
@@ -742,7 +768,7 @@ public class NulswapRouter implements Contract{
     ){
         String[][] args = new String[][]{new String[]{from.toString()}, new String[]{recipient.toString()}, new String[]{amount.toString()}};
         boolean b = new Boolean(token.callWithReturnValue("transferFrom", "", args, BigInteger.ZERO));
-        require(b, "NulswapV1: Failed to transfer");
+        require(b, "NulswapRouter: Failed to transfer");
     }
 
 
@@ -787,14 +813,14 @@ public class NulswapRouter implements Contract{
         String[][] argsApprove = new String[][]{new String[]{WNULS.toString()}, new String[]{v.toString()}};
         String rApprove = WNULS.callWithReturnValue("approve", null, argsApprove, BigInteger.ZERO);
 
-        require(new Boolean(rApprove), "NulswapV1: Approve did not succeeded!");
+        require(new Boolean(rApprove), "NulswapRouter: Approve did not succeeded!");
 
         //Create arguments and call the withdraw function
         String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.sender().toString()}};
         String rWithdraw = WNULS.callWithReturnValue("withdraw", "", args, BigInteger.ZERO);
 
         //Require that the withdraw was successful
-        require(new Boolean(rWithdraw), "NulswapV1: Withdraw did not succeed!");
+        require(new Boolean(rWithdraw), "NulswapRouter: Withdraw did not succeed!");
         //emit(new TokenPurchase(WNULS, v, v));
     }
 
