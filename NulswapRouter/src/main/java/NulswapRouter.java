@@ -21,23 +21,35 @@ import static io.nuls.contract.sdk.Utils.require;
  */
 public class NulswapRouter implements Contract{
 
+    /** Variables **/
     public Address factory;                     // Factory
     public Address WNULS;                       // WNULS
 
     private static Address BURNER_ADDR = new Address("");
 
+    /**
+     * Constructor
+     *
+     * @param _factory Factory Address
+     * @param _WNULS   WNULS Address
+     */
     public NulswapRouter(Address _factory, Address _WNULS){
         factory = _factory;
         WNULS   = _WNULS;
     }
 
+    /**
+     * Ensure tx is done before deadline
+     *
+     * @param deadline The timestamp when the tx is not valid anymore
+     */
     protected void ensure(BigInteger deadline) {
         require(deadline.compareTo(BigInteger.valueOf(Block.timestamp())) >= 0, "UniswapV2Router: EXPIRED");
     }
 
-    /*
+    /**
      * Fallback function in case someone transfer nuls to the contract
-     * */
+     */
     @Payable
     @Override
     public void _payable() {
@@ -49,6 +61,10 @@ public class NulswapRouter implements Contract{
      *
      * @param tokenA Token Address
      * @param tokenB Token Address
+     * @param amountADesired Amount A
+     * @param amountBDesired
+     * @param amountAMin
+     * @param amountBMin
      */
     private String _addLiquidity(
             Address tokenA,
@@ -96,7 +112,16 @@ public class NulswapRouter implements Contract{
         return amountA + "," + amountB;
     }
 
-
+    /**
+     *  **** ADD LIQUIDITY ****
+     *
+     * @param tokenA Token Address
+     * @param tokenB Token Address
+     * @param amountADesired Amount A
+     * @param amountBDesired
+     * @param amountAMin
+     * @param amountBMin
+     */
     public String addLiquidity(
             Address tokenA,
             Address tokenB,
@@ -109,22 +134,32 @@ public class NulswapRouter implements Contract{
     ){
         ensure(deadline);
 
-        String addLiqRes = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        String addLiqRes        = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
 
-        String[] arrOfStr = addLiqRes.split(",", 2);
-        BigInteger amountA = new BigInteger(arrOfStr[0]);
-        BigInteger amountB = new BigInteger(arrOfStr[1]);
+        String[] arrOfStr       = addLiqRes.split(",", 2);
+        BigInteger amountA      = new BigInteger(arrOfStr[0]);
+        BigInteger amountB      = new BigInteger(arrOfStr[1]);
 
-        Address pair = safeGetPair(tokenA, tokenB);
+        Address pair            = safeGetPair(tokenA, tokenB);
 
         safeTransferFrom(tokenA, Msg.sender(), pair, amountA);
         safeTransferFrom(tokenB, Msg.sender(), pair, amountB);
 
-        BigInteger liquidity = safeMint(pair, to);
+        BigInteger liquidity    = safeMint(pair, to);
 
         return amountA + "," + amountB  + "," + liquidity;
     }
 
+    /**
+     *  **** ADD LIQUIDITY WITH NULS ****
+     *
+     * @param token Token Address
+     * @param amountTokenDesired Amount A
+     * @param amounttokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     */
     @Payable
     public String addLiquidityETH(
             Address token,
@@ -164,7 +199,12 @@ public class NulswapRouter implements Contract{
         return amountToken + "," + amountETH + "," + liquidity;
     }
 
-    // **** REMOVE LIQUIDITY ****
+    /**
+     * **** REMOVE LIQUIDITY ****
+     *
+     *
+     * @param tokenA
+     */
     public String removeLiquidity(
             Address tokenA,
             Address tokenB,
@@ -201,6 +241,15 @@ public class NulswapRouter implements Contract{
         return amountA + "," + amountB;
     }
 
+    /**
+     *
+     * @param token
+     * @param liquidity
+     * @param amountTokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     * */
     public String removeLiquidityETH(
             Address token,
             BigInteger liquidity,
@@ -278,6 +327,14 @@ public class NulswapRouter implements Contract{
         return amounts;
     }
 
+    /**
+     *
+     * @param amountOut
+     * @param amountInMax
+     * @param path Array of tokens
+     * @param to Address that will receive the output token
+     * @param deadline
+     */
     public BigInteger[] swapTokensForExactTokens(
             BigInteger amountOut,
             BigInteger amountInMax,
@@ -288,13 +345,22 @@ public class NulswapRouter implements Contract{
         ensure(deadline);
 
         BigInteger[] amounts = getAmountsIn(amountOut, path);
-        require(amounts[0].compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        require(amounts[0].compareTo(amountInMax) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
         safeTransferFrom(path[0], Msg.sender(), safeGetPair( path[0], path[1]), amounts[0]);
 
         _swap(amounts, path, to);
         return amounts;
     }
 
+
+    /**
+     *
+     *
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     * */
     @Payable
    public BigInteger[] swapExactETHForTokens(
            BigInteger amountOutMin,
@@ -304,16 +370,26 @@ public class NulswapRouter implements Contract{
     ){
         ensure(deadline);
 
-        require(path[0].equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(path[0].equals(WNULS), "NulswapV2Router: INVALID_PATH");
         BigInteger[] amounts = getAmountsOut(Msg.value(), path);
-        require(amounts[amounts.length - 1].compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+
+        require(amounts[amounts.length - 1].compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         depositNuls(amounts[0]); //IWETH(WETH).deposit{value: amounts[0]}();
+
         require(safeTransfer(WNULS, safeGetPair( path[0], path[1]), amounts[0]), "Transfer failed");
         _swap(amounts, path, to);
 
         return amounts;
     }
 
+    /**
+     *
+     * @param amountOut
+     * @param amountInMax
+     * @param path
+     * @param to
+     * @param deadline
+     * */
     public BigInteger[] swapTokensForExactETH(
             BigInteger amountOut,
             BigInteger amountInMax,
@@ -333,6 +409,14 @@ public class NulswapRouter implements Contract{
         return amounts;
     }
 
+    /**
+     *
+     * @param amountIn
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     */
     public BigInteger[] swapExactTokensForETH(
             BigInteger amountIn,
             BigInteger amountOutMin,
@@ -355,6 +439,13 @@ public class NulswapRouter implements Contract{
         return amounts;
     }
 
+    /**
+     *
+     * @param amountOut
+     * @param path
+     * @param to
+     * @param deadline
+     */
     @Payable
     public BigInteger[] swapETHForExactTokens(
             BigInteger amountOut,
@@ -364,9 +455,9 @@ public class NulswapRouter implements Contract{
     ){
         ensure(deadline);
 
-        require(path[0].equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(path[0].equals(WNULS), "NulswapV2Router: INVALID_PATH");
         BigInteger[] amounts = getAmountsIn(amountOut, path);
-        require(amounts[0].compareTo(Msg.value()) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        require(amounts[0].compareTo(Msg.value()) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
 
         depositNuls(amounts[0]);
         assert(safeTransfer(WNULS, safeGetPair( path[0], path[1]), amounts[0]));
@@ -376,9 +467,14 @@ public class NulswapRouter implements Contract{
         return amounts;
     }
 
+    /**
+     *
+     * @param tokenA
+     * @param tokenB
+     * */
     // returns sorted token addresses, used to handle return values from pairs sorted in this order
     private String sortTokens(Address tokenA, Address tokenB){
-        require(!tokenA.equals(tokenB), "UniswapV2Library: IDENTICAL_ADDRESSES");
+        require(!tokenA.equals(tokenB), "NulswapV2Library: IDENTICAL_ADDRESSES");
 
         Address token0, token1;
         if(tokenA.hashCode() < tokenB.hashCode()){
@@ -393,6 +489,10 @@ public class NulswapRouter implements Contract{
         return token0 + "," + token1;
     }
 
+    /**
+     * @param tokenA
+     * @param tokenB
+     * */
     // fetches and sorts the reserves for a pair
     @View
     private String getReserves(
@@ -419,6 +519,12 @@ public class NulswapRouter implements Contract{
     }
 
 
+    /**
+     *
+     * @param amountA
+     * @param reserveA
+     * @param reserveB
+     * */
     @View
     public BigInteger quote(
             BigInteger amountA,
@@ -431,6 +537,12 @@ public class NulswapRouter implements Contract{
         return amountB;
     }
 
+    /**
+     *
+     * @param amountIn
+     * @param reserveIn
+     * @param reserveOut
+     * */
     @View
     public BigInteger getAmountOut(
             BigInteger amountIn,
@@ -446,8 +558,18 @@ public class NulswapRouter implements Contract{
         return amountOut;
     }
 
+    /**
+     *
+     * @param amountOut
+     * @param reserveIn
+     * @param reserveOut
+     * */
     @View
-    public BigInteger getAmountIn(BigInteger amountOut, BigInteger reserveIn, BigInteger reserveOut){
+    public BigInteger getAmountIn(
+            BigInteger amountOut,
+            BigInteger reserveIn,
+            BigInteger reserveOut
+    ){
         require(amountOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
         BigInteger numerator = reserveIn.multiply(amountOut).multiply(BigInteger.valueOf(1000));
@@ -499,6 +621,13 @@ public class NulswapRouter implements Contract{
 
     }
 
+    /**
+     *
+     * @param pair
+     * @param amount0Out
+     * @param amount1Out
+     * @param to
+     * */
     private BigInteger safeSwap(
             @Required Address pair,
             BigInteger amount0Out,
@@ -509,31 +638,62 @@ public class NulswapRouter implements Contract{
         return new BigInteger(pair.callWithReturnValue("swap", "", argsM, BigInteger.ZERO));
     }
 
+    /**
+     *
+     * @param pair
+     */
     private String safeGetReserves(@Required Address pair){
         String[][] argsM = new String[][]{};
         return pair.callWithReturnValue("getReserves", "", argsM, BigInteger.ZERO);
     }
 
+    /**
+     *
+     * @param pair
+     * @param to
+     */
     private BigInteger safeMint(@Required Address pair, @Required Address to){
         String[][] argsM = new String[][]{new String[]{to.toString()}};
         return new BigInteger(pair.callWithReturnValue("mint", "", argsM, BigInteger.ZERO));
     }
 
+    /**
+     *
+     * @param pair
+     * @param to
+     */
     private String safeBurn(@Required Address pair, @Required Address to){
         String[][] argsM = new String[][]{new String[]{to.toString()}};
         return pair.callWithReturnValue("burn", "", argsM, BigInteger.ZERO);
     }
 
+
+    /**
+     *
+     * @param token
+     * */
     private BigInteger safeTotalSupply(@Required Address token){
         String[][] argsM = new String[][]{};
         return new BigInteger(token.callWithReturnValue("totalSupply", "", argsM, BigInteger.ZERO));
     }
 
+    /**
+     *
+     * @param tokenA
+     * @param tokenB
+     * */
     private Address safeGetPair(@Required Address tokenA, @Required Address tokenB){
         String[][] argsM = new String[][]{new String[]{tokenA.toString()}, new String[]{tokenB.toString()}};
         return new Address(factory.callWithReturnValue("getPair", "", argsM, BigInteger.ZERO));
     }
 
+    /**
+     *  Transfer token from msg.sender to the recipient address
+     *
+     * @param token Token Address
+     * @param recipient Recipient Address
+     * @param amount Amount to Transfer
+     */
     private Boolean safeTransfer(
             @Required Address token,
             @Required Address recipient,
@@ -545,6 +705,13 @@ public class NulswapRouter implements Contract{
         return b;
     }
 
+    /**
+     *
+     * Safe Transfer
+     *
+     * @param recipient
+     * @param amount
+     * */
     private void safeTransferETH(
             @Required Address recipient,
             @Required BigInteger amount
@@ -572,6 +739,13 @@ public class NulswapRouter implements Contract{
     }
 
 
+    /**
+     *
+     * Create Pair
+     *
+     * @param token0
+     * @param token1
+     * */
     private Address _createPair(Address token0, Address token1){
 
         String[][] args = new String[][]{ new String[]{token0.toString()}, new String[]{token1.toString()}};
@@ -598,7 +772,7 @@ public class NulswapRouter implements Contract{
     /**
      * Withdraw nuls from the wnuls contract - must be always private - when I say always is ALWAYS
      *
-     * @param v
+     * @param v Amount of WNULS to convert to NULS
      */
     private void withdrawNuls(@Required BigInteger v) {
 
