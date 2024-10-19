@@ -460,7 +460,7 @@ public class NulswapRouter implements Contract{
         require(amounts[0].compareTo(Msg.value()) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
 
         depositNuls(amounts[0]);
-        assert(safeTransfer(WNULS, safeGetPair( path[0], path[1]), amounts[0]));
+        require(safeTransfer(WNULS, safeGetPair( path[0], path[1]), amounts[0]), "Failed Transfer");
         _swap(amounts, path, to);
 
         if (Msg.value().compareTo(amounts[0]) > 0) safeTransferETH(Msg.sender(), Msg.value().subtract(amounts[0])); // refund dust eth, if any
@@ -474,6 +474,7 @@ public class NulswapRouter implements Contract{
      * */
     // returns sorted token addresses, used to handle return values from pairs sorted in this order
     private String sortTokens(Address tokenA, Address tokenB){
+
         require(!tokenA.equals(tokenB), "NulswapV2Library: IDENTICAL_ADDRESSES");
 
         Address token0, token1;
@@ -499,10 +500,10 @@ public class NulswapRouter implements Contract{
             Address tokenA,
             Address tokenB
     ){
-        String[] arrOfStr2 = sortTokens(tokenA, tokenB).split(",", 2);
-        Address token0 = new Address(arrOfStr2[0]);
+        String[] arrOfStr2  = sortTokens(tokenA, tokenB).split(",", 2);
+        Address token0      = new Address(arrOfStr2[0]);
 
-        String[] arrOfStr3 = safeGetReserves(safeGetPair(tokenA, tokenB)).split(",", 3);
+        String[] arrOfStr3  = safeGetReserves(safeGetPair(tokenA, tokenB)).split(",", 3);
         BigInteger reserve0 = new BigInteger(arrOfStr3[0]);
         BigInteger reserve1 = new BigInteger(arrOfStr3[1]);
 
@@ -549,12 +550,15 @@ public class NulswapRouter implements Contract{
             BigInteger reserveIn,
             BigInteger reserveOut
     ){
+
         require(amountIn.compareTo(BigInteger.ZERO) > 0,"UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+
         BigInteger amountInWithFee = amountIn.multiply(BigInteger.valueOf(997));
         BigInteger numerator = amountInWithFee.multiply(reserveOut);
         BigInteger denominator = reserveIn.multiply(BigInteger.valueOf(1000)).add(amountInWithFee);
         BigInteger amountOut = numerator.divide(denominator);
+
         return amountOut;
     }
 
@@ -570,11 +574,14 @@ public class NulswapRouter implements Contract{
             BigInteger reserveIn,
             BigInteger reserveOut
     ){
+
         require(amountOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+
         BigInteger numerator = reserveIn.multiply(amountOut).multiply(BigInteger.valueOf(1000));
         BigInteger denominator = (reserveOut.subtract(amountOut)).multiply(BigInteger.valueOf(997));
         BigInteger amountIn = (numerator.divide(denominator)).add(BigInteger.ONE);
+
         return amountIn;
     }
 
