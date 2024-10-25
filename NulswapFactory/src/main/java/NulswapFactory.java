@@ -34,7 +34,7 @@ public class NulswapFactory extends Ownable implements Contract{
 
     private Address feeTo;
     private Address feeToSetter;
-    private static Address BURNER_ADDR = new Address("");
+    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
 
     private Map<Address, Map<Address, Address>> getPair = new HashMap<Address, Map<Address, Address>>();
 
@@ -44,22 +44,8 @@ public class NulswapFactory extends Ownable implements Contract{
         feeToSetter = _feeToSetter;
     }
 
-    @View
-    public Address getPair(Address token0,Address token1){
-        if(getPair.get(token0) != null) {
-            if(getPair.get(token0).get(token1) != null)
-                return getPair.get(token0).get(token1);
-        }
-        return BURNER_ADDR;
-    }
-
-    @View
-    public int allPairsLength(){
-        return allPairs.size();
-    }
-
     public Address createPair(Address tokenA, Address tokenB){
-        require(!tokenA.equals(tokenB), "UniswapV2: IDENTICAL_ADDRESSES");
+        require(!tokenA.equals(tokenB), "NulswapV3: IDENTICAL_ADDRESSES");
 
         Address token0, token1;
         if(tokenA.hashCode() < tokenB.hashCode()){
@@ -70,12 +56,12 @@ public class NulswapFactory extends Ownable implements Contract{
             token1 = tokenA;
         }
 
-        require(token0 != null, "UniswapV2: ZERO_ADDRESS");
+        require(token0 != null, "NulswapV3: ZERO_ADDRESS");
 
         Map<Address, Address> ownerAllowed = getPair.get(token0);
         Address value = ownerAllowed.get(token1);
 
-        require(getPair.get(token0) == null || value == null, "UniswapV2: PAIR_EXISTS"); // single check is sufficient
+        require(getPair.get(token0) == null || value == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
 
         String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgzFMHJST31LPXG59utwyzyYX6rtPKx"), new String[]{"wNuls", "WNULS", "1", "8"});
         Address pair = new Address(pairAddr);
@@ -102,18 +88,32 @@ public class NulswapFactory extends Ownable implements Contract{
 
 
     public void setFeeTo(Address _feeTo){
-        require(Msg.sender().equals(feeToSetter), "UniswapV2: FORBIDDEN");
+        require(Msg.sender().equals(feeToSetter), "NulswapV3: FORBIDDEN");
         feeTo = _feeTo;
     }
 
     public void setFeeToSetter(Address _feeToSetter){
-        require(Msg.sender().equals(feeToSetter), "UniswapV2: FORBIDDEN");
+        require(Msg.sender().equals(feeToSetter), "NulswapV3: FORBIDDEN");
         feeToSetter = _feeToSetter;
     }
 
     @View
     public Address getFeeTo(){
         return feeTo;
+    }
+
+    @View
+    public Address getPair(Address token0,Address token1){
+        if(getPair.get(token0) != null) {
+            if(getPair.get(token0).get(token1) != null)
+                return getPair.get(token0).get(token1);
+        }
+        return BURNER_ADDR;
+    }
+
+    @View
+    public int allPairsLength(){
+        return allPairs.size();
     }
 
 }

@@ -66,11 +66,11 @@ public class NulswapLPToken extends Ownable implements Contract, Token {
         return totalSupply;
     }
 
-    public NulswapLPToken(@Required String name, @Required String symbol, @Required BigInteger initialAmount, @Required int decimals) {
+    public NulswapLPToken(@Required String name, @Required String symbol, @Required int decimals) {
         this.name = name;
         this.symbol = symbol;
         this.decimals = decimals;
-        totalSupply = initialAmount.multiply(BigInteger.TEN.pow(decimals));;
+        totalSupply = BigInteger.ONE;
         balances.put(Msg.sender(), totalSupply);
         owner = Msg.sender();
         emit(new TransferEvent(null, Msg.sender(), totalSupply));
