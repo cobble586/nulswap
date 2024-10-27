@@ -76,17 +76,17 @@ public class NulswapRouter implements Contract{
             BigInteger amountBMin
     ){
 
-        Utils.emit(new DebugEvent("test1", "1.1"));
+
         // create the pair if it doesn't exist yet
         if (safeGetPair(tokenA, tokenB).equals(BURNER_ADDR)) {
             _createPair(tokenA, tokenB);
         }
-        Utils.emit(new DebugEvent("test1", "1.2"));
+
         String resValues    = getReserves(tokenA, tokenB);
         String[] arrOfStr   = resValues.split(",", 2);
         BigInteger reserveA = new BigInteger(arrOfStr[0]);
         BigInteger reserveB = new BigInteger(arrOfStr[1]);
-        Utils.emit(new DebugEvent("test1", "1.3"));
+
         BigInteger amountA, amountB;
         if (reserveA.compareTo(BigInteger.ZERO) == 0 && reserveB.compareTo(BigInteger.ZERO) == 0) {
 
@@ -135,8 +135,6 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
-
-        Utils.emit(new DebugEvent("test1", "1"));
 
         String addLiqRes        = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
 

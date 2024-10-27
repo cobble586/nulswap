@@ -4,6 +4,7 @@ import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
 import org.checkerframework.checker.units.qual.A;
 import io.nuls.contract.sdk.Utils.*;
+import io.nuls.contract.sdk.event.DebugEvent;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -224,6 +225,7 @@ public class NulswapPair implements Contract{
 
         lock();
 
+        Utils.emit(new DebugEvent("test2", "1.1.1"));
         BigInteger balance0     = safeBalanceOf(token0, Msg.address()); //IERC20(token0).balanceOf(address(this));
         BigInteger balance1     = safeBalanceOf(token1, Msg.address()); //IERC20(token1).balanceOf(address(this));
 
@@ -233,19 +235,22 @@ public class NulswapPair implements Contract{
         boolean feeOn           = _mintFee(reserve0, reserve1);
         BigInteger _totalSupply = safeTotalSupply(lp); // Must be defined here since totalSupply can update in _mintFee
 
+        Utils.emit(new DebugEvent("test2", "1.1.2"));
         BigInteger liquidity;
-        if (_totalSupply.compareTo(BigInteger.ZERO) == 0) {
+        if (_totalSupply.compareTo(BigInteger.ONE) == 0) {
             liquidity = sqrt(amount0.multiply(amount1)).subtract(MINIMUM_LIQUIDITY);
             _mint(BURNER_ADDR, MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
             liquidity = min(amount0.multiply(_totalSupply).divide(reserve0), amount1.multiply(_totalSupply).divide(reserve1));
         }
 
+        Utils.emit(new DebugEvent("test2", "1.1.3"));
+
         require(liquidity.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
-
+        Utils.emit(new DebugEvent("test2", "1.1.4"));
         _update(balance0, balance1, reserve0, reserve1);
-
+        Utils.emit(new DebugEvent("test2", "1.1.5"));
         if (feeOn) kLast = reserve0.multiply(reserve1); // reserve0 and reserve1 are up-to-date
         //emit Mint(msg.sender, amount0, amount1);
 
