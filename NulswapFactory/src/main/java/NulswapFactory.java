@@ -59,17 +59,16 @@ public class NulswapFactory extends Ownable implements Contract{
         require(token0 != null, "NulswapV3: ZERO_ADDRESS");
 
         Map<Address, Address> ownerAllowed = getPair.get(token0);
-        Address value = ownerAllowed.get(token1);
 
-        require(getPair.get(token0) == null || value == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
+        require(getPair.get(token0) == null || getPair.get(token0).get(token1) == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
 
-        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6Hgn98z8poHfegHtqAdkfS9ATfazKo6h"), new String[]{});
+        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgjhNpW8kAFMTo2DTqo5P96MXyNtybg"), new String[]{});
         Address pair = new Address(pairAddr);
 
         initialize(pair, token0, token1);
 
-        Map<Address, Address> tkn0tkn1 = getPair.get(token0);
-        Map<Address, Address> tkn1tkn0 = getPair.get(token1);
+        Map<Address, Address> tkn0tkn1 = getPair.get(token0) != null ? getPair.get(token0) : new HashMap<>();
+        Map<Address, Address> tkn1tkn0 = getPair.get(token1) != null ? getPair.get(token1) : new HashMap<>();
 
         tkn0tkn1.put(token1, pair);
         tkn1tkn0.put(token0, pair);

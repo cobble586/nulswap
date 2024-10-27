@@ -3,6 +3,7 @@ import io.nuls.contract.sdk.annotation.Payable;
 import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
 import org.checkerframework.checker.units.qual.A;
+import io.nuls.contract.sdk.event.DebugEvent;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -75,16 +76,17 @@ public class NulswapRouter implements Contract{
             BigInteger amountBMin
     ){
 
+        Utils.emit(new DebugEvent("test1", "1.1"));
         // create the pair if it doesn't exist yet
-        if (safeGetPair(tokenA, tokenB) == BURNER_ADDR) {
+        if (safeGetPair(tokenA, tokenB).equals(BURNER_ADDR)) {
             _createPair(tokenA, tokenB);
         }
-
+        Utils.emit(new DebugEvent("test1", "1.2"));
         String resValues    = getReserves(tokenA, tokenB);
         String[] arrOfStr   = resValues.split(",", 2);
         BigInteger reserveA = new BigInteger(arrOfStr[0]);
         BigInteger reserveB = new BigInteger(arrOfStr[1]);
-
+        Utils.emit(new DebugEvent("test1", "1.3"));
         BigInteger amountA, amountB;
         if (reserveA.compareTo(BigInteger.ZERO) == 0 && reserveB.compareTo(BigInteger.ZERO) == 0) {
 
@@ -134,16 +136,22 @@ public class NulswapRouter implements Contract{
     ){
         ensure(deadline);
 
+        Utils.emit(new DebugEvent("test1", "1"));
+
         String addLiqRes        = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
 
         String[] arrOfStr       = addLiqRes.split(",", 2);
         BigInteger amountA      = new BigInteger(arrOfStr[0]);
         BigInteger amountB      = new BigInteger(arrOfStr[1]);
 
+        Utils.emit(new DebugEvent("test1", "2"));
+
         Address pair            = safeGetPair(tokenA, tokenB);
 
         safeTransferFrom(tokenA, Msg.sender(), pair, amountA);
         safeTransferFrom(tokenB, Msg.sender(), pair, amountB);
+
+        Utils.emit(new DebugEvent("test1", "3"));
 
         BigInteger liquidity    = safeMint(pair, to);
 
@@ -506,7 +514,6 @@ public class NulswapRouter implements Contract{
      * @param tokenB
      * */
     // fetches and sorts the reserves for a pair
-    @View
     private String getReserves(
             Address tokenA,
             Address tokenB

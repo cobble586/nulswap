@@ -418,6 +418,11 @@ public class NulswapPair implements Contract{
     }
 
     @View
+    public String getReserves(){
+        return reserve0 + "," + reserve1;
+    }
+
+    @View
     public BigInteger getBlockTimeStampLast(){
         return blockTimestampLast;
     }
