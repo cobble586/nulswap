@@ -358,7 +358,7 @@ public class NulswapPair implements Contract{
      * */
     private Address getFeeTo(){
         String[][] argsM = new String[][]{};
-        return new Address(factory.callWithReturnValue("feeTo", "", argsM, BigInteger.ZERO));
+        return new Address(factory.callWithReturnValue("getFeeTo", "", argsM, BigInteger.ZERO));
     }
 
     private void _mint(@Required Address recipient, @Required BigInteger amount){
