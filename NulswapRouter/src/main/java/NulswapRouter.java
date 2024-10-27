@@ -223,7 +223,7 @@ public class NulswapRouter implements Contract{
         ensure(deadline);
 
         Address pair = safeGetPair(tokenA, tokenB);
-        safeTransferFrom(pair, Msg.sender(), pair, liquidity);
+        safeTransferFrom(safeGetLP(pair), Msg.sender(), pair, liquidity);
 
         String[] arrOfStr  = safeBurn(pair, to).split(",", 2);
         BigInteger amount0 = new BigInteger(arrOfStr[0]);
@@ -293,6 +293,7 @@ public class NulswapRouter implements Contract{
 
         for (int i = 0; i < path.length - 1; i++) {
 
+
             Address input  = new Address(path[i]);
             Address output = new Address(path[i + 1]);
 
@@ -308,9 +309,9 @@ public class NulswapRouter implements Contract{
                 amount0Out = amountOut;
                 amount1Out = BigInteger.ZERO;
             }
-
+            Utils.emit(new DebugEvent("test2", "3..3.3"));
             Address to = (i < path.length - 2 ) ? safeGetPair(output, new Address(path[i + 2])) : _to;
-
+            Utils.emit(new DebugEvent("test2", "3..3.3.1"+safeGetPair(input, output).toString()+","+to.toString()));
            // IUniswapV2Pair(safeGetPair(input, output)).swap(amount0Out, amount1Out, to);
             safeSwap(safeGetPair(input, output), amount0Out, amount1Out, to);
         }
@@ -337,10 +338,11 @@ public class NulswapRouter implements Contract{
 
         String[] amounts = getAmountsOut(amountIn, path);
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        Utils.emit(new DebugEvent("test2", "3"));
         safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
-
+        Utils.emit(new DebugEvent("test2", "3..3"));
         _swap(amounts, path, to);
-
+        Utils.emit(new DebugEvent("test2", "4"));
         return amounts;
     }
 
@@ -608,19 +610,23 @@ public class NulswapRouter implements Contract{
      * */
     @View
     public String[] getAmountsOut(BigInteger amountIn, String[] path){
-        require(path.length >= 2, "UniswapV2Library: INVALID_PATH");
-        String[] amounts = new String[path.length];
-        amounts[0] = amountIn.toString();
-        for (int i = 0; i < path.length - 1; i++) {
 
-            String resVal = getReserves(new Address(path[i]), new Address(path[i + 1]));
+        require(path.length >= 2, "NulswapV3: INVALID_PATH");
+        String[] amounts = new String[path.length];
+        amounts[0]       = amountIn.toString();
+
+        Utils.emit(new DebugEvent("test2", "2.1"));
+
+        for (int i = 0; i < path.length - 1; i++) {
 
             String[] arrOfStr3    = getReserves(new Address(path[i]), new Address(path[i + 1])).split(",", 3);
             BigInteger reserveIn  = new BigInteger(arrOfStr3[0]);
             BigInteger reserveOut = new BigInteger(arrOfStr3[1]);
+            Utils.emit(new DebugEvent("test2", "2.1"));
 
             amounts[i + 1] = getAmountOut( new BigInteger(amounts[i]), reserveIn, reserveOut).toString();
         }
+        Utils.emit(new DebugEvent("test2", "2.3"));
         return amounts;
     }
 
@@ -631,10 +637,12 @@ public class NulswapRouter implements Contract{
      * */
     @View
     public String[] getAmountsIn(BigInteger amountOut, String[] path) {
-        require(path.length >= 2, "UniswapV2Library: INVALID_PATH");
-        String[] amounts = new String[path.length];
 
+        require(path.length >= 2, "NulswapV3: INVALID_PATH");
+        String[] amounts            = new String[path.length];
         amounts[amounts.length - 1] = amountOut.toString();
+
+        Utils.emit(new DebugEvent("test2", "1.1"));
 
         for (int i = path.length - 1; i > 0; i--) {
 
@@ -642,8 +650,10 @@ public class NulswapRouter implements Contract{
             BigInteger reserveIn  = new BigInteger(arrOfStr3[0]);
             BigInteger reserveOut = new BigInteger(arrOfStr3[1]);
 
+            Utils.emit(new DebugEvent("test2", "1.2"));
             amounts[i - 1] = getAmountIn(new BigInteger(amounts[i]), reserveIn, reserveOut).toString();
         }
+        Utils.emit(new DebugEvent("test2", "1.3"));
         return amounts;
     }
 
@@ -666,14 +676,15 @@ public class NulswapRouter implements Contract{
      * @param amount1Out
      * @param to
      * */
-    private BigInteger safeSwap(
+    private void safeSwap(
             @Required Address pair,
             BigInteger amount0Out,
             BigInteger amount1Out,
             @Required Address to
     ){
+        Utils.emit(new DebugEvent("test2", "4.3.3"));
         String[][] argsM = new String[][]{new String[]{amount0Out.toString()}, new String[]{amount1Out.toString()}, new String[]{to.toString()}};
-        return new BigInteger(pair.callWithReturnValue("swap", "", argsM, BigInteger.ZERO));
+        pair.callWithReturnValue("swap", "", argsM, BigInteger.ZERO);
     }
 
     /**
@@ -723,6 +734,16 @@ public class NulswapRouter implements Contract{
     private Address safeGetPair(@Required Address tokenA, @Required Address tokenB){
         String[][] argsM = new String[][]{new String[]{tokenA.toString()}, new String[]{tokenB.toString()}};
         return new Address(factory.callWithReturnValue("getPair", "", argsM, BigInteger.ZERO));
+    }
+
+    /**
+     *
+     * @param tokenA
+     * @param tokenB
+     * */
+    private Address safeGetLP(@Required Address pair){
+        String[][] argsM = new String[][]{};
+        return new Address(pair.callWithReturnValue("getLP", "", argsM, BigInteger.ZERO));
     }
 
     /**

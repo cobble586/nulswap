@@ -296,6 +296,8 @@ public class NulswapPair implements Contract{
         // Lock Contract
         lock();
 
+        Utils.emit(new DebugEvent("test3", "1.1"));
+
         // One of the values must be higher than 0
         require(amount0Out.compareTo(BigInteger.ZERO) > 0 || amount1Out.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
         require(amount0Out.compareTo(reserve0) < 0 && amount1Out.compareTo(reserve1) < 0, "NulswapV3: INSUFFICIENT_LIQUIDITY");
@@ -304,23 +306,28 @@ public class NulswapPair implements Contract{
 
         require(to != token0 && to != token1, "NulswapV3: INVALID_TO");
 
+        Utils.emit(new DebugEvent("test3", "1.2"));
+
         if (amount0Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token0, to, amount0Out); // optimistically transfer tokens
         if (amount1Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token1, to, amount1Out); // optimistically transfer tokens
 
         balance0 = safeBalanceOf(token0, Msg.address()); //IERC20(_token0).balanceOf(address(this));
         balance1 = safeBalanceOf(token1, Msg.address()); //IERC20(_token1).balanceOf(address(this));
 
+        Utils.emit(new DebugEvent("test3", "1.3"));
         BigInteger amount0In = balance0.compareTo(reserve0.subtract(amount0Out)) > 0 ? balance0.subtract((reserve0.subtract(amount0Out))) : BigInteger.ZERO;
         BigInteger amount1In = balance1.compareTo(reserve1.subtract(amount1Out)) > 0 ? balance1.subtract((reserve1.subtract(amount1Out))) : BigInteger.ZERO;
 
         require(amount0In.compareTo(BigInteger.ZERO) > 0 || amount1In.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_INPUT_AMOUNT");
-
+        Utils.emit(new DebugEvent("test3", "1.4"));
         BigInteger balance0Adjusted = balance0.multiply(ONE_THOUSAND).subtract(amount0In.multiply(THREE));
         BigInteger balance1Adjusted = balance1.multiply(ONE_THOUSAND).subtract(amount1In.multiply(THREE));
 
+        Utils.emit(new DebugEvent("test3", "1.5"));
         require((balance0Adjusted.multiply(balance1Adjusted)).compareTo(reserve0.multiply(reserve1).multiply(ONE_THOUSAND.pow(2))) >= 0, "NulswapV3: K");
-
+        Utils.emit(new DebugEvent("test3", "1.6"));
         _update(balance0, balance1, reserve0, reserve1);
+        Utils.emit(new DebugEvent("test3", "1.7"));
         //emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
 
         unlock();

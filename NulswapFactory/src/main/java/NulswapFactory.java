@@ -42,6 +42,7 @@ public class NulswapFactory extends Ownable implements Contract{
 
     public NulswapFactory(Address _feeToSetter){
         feeToSetter = _feeToSetter;
+        feeTo       = _feeToSetter;
     }
 
     public Address createPair(Address tokenA, Address tokenB){
@@ -62,7 +63,7 @@ public class NulswapFactory extends Ownable implements Contract{
 
         require(getPair.get(token0) == null || getPair.get(token0).get(token1) == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
 
-        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6Hgx3YpW8cVKo3VU4uDVzCUccBSeWRna"), new String[]{});
+        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6Hgw916TK3TdH7i6ashb317VQkjxAiZD"), new String[]{});
         Address pair = new Address(pairAddr);
 
         initialize(pair, token0, token1);
