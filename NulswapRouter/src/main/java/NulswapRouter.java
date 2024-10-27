@@ -331,7 +331,7 @@ public class NulswapRouter implements Contract{
 
         String[] amounts = getAmountsOut(amountIn, path);
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        safeTransferFrom(path[0], Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
+        safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
 
         _swap(amounts, path, to);
 
@@ -375,7 +375,7 @@ public class NulswapRouter implements Contract{
     @Payable
    public String[] swapExactETHForTokens(
            BigInteger amountOutMin,
-           Address[] path,
+           String[] path,
            Address to,
            BigInteger deadline
     ){
@@ -401,22 +401,22 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      * */
-    public BigInteger[] swapTokensForExactETH(
+    public String[] swapTokensForExactETH(
             BigInteger amountOut,
             BigInteger amountInMax,
-            Address[] path,
+            String[] path,
             Address to,
             BigInteger deadline)
     {
         ensure(deadline);
         require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
-        BigInteger[] amounts = getAmountsIn(amountOut, path);
+        String[] amounts = getAmountsIn(amountOut, path);
 
-        require(amounts[0].compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
-        safeTransferFrom(path[0], Msg.sender(), safeGetPair( path[0], path[1]), amounts[0]);
+        require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
         _swap(amounts, path, Msg.address());
-        withdrawNuls(amounts[amounts.length - 1]);
-        safeTransferETH(to, amounts[amounts.length - 1]);
+        withdrawNuls(new BigInteger(amounts[amounts.length - 1]));
+        safeTransferETH(to, new BigInteger(amounts[amounts.length - 1]));
         return amounts;
     }
 
@@ -428,24 +428,24 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      */
-    public BigInteger[] swapExactTokensForETH(
+    public String[] swapExactTokensForETH(
             BigInteger amountIn,
             BigInteger amountOutMin,
-            Address[] path,
+            String[] path,
             Address to,
             BigInteger deadline
     ){
         ensure(deadline);
 
-        require(path[path.length - 1].equals(WNULS),"UniswapV2Router: INVALID_PATH");
-        BigInteger[] amounts = getAmountsOut(amountIn, path);
+        require(new Address(path[path.length - 1]).equals(WNULS),"UniswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(amountIn, path);
 
-        require(amounts[amounts.length - 1].compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        safeTransferFrom(path[0], Msg.sender(), safeGetPair(path[0], path[1]), amounts[0]);
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair(new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
         _swap(amounts, path, Msg.address());
 
-        withdrawNuls(amounts[amounts.length - 1]); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
-        safeTransferETH(to, amounts[amounts.length - 1]);
+        withdrawNuls(new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferETH(to, new BigInteger(amounts[amounts.length - 1]));
 
         return amounts;
     }
@@ -629,7 +629,7 @@ public class NulswapRouter implements Contract{
         require(path.length >= 2, "UniswapV2Library: INVALID_PATH");
         String[] amounts = new String[path.length];
 
-        amounts[amounts.length - 1] = amountOut;
+        amounts[amounts.length - 1] = amountOut.toString();
 
         for (int i = path.length - 1; i > 0; i--) {
 
@@ -637,7 +637,7 @@ public class NulswapRouter implements Contract{
             BigInteger reserveIn  = new BigInteger(arrOfStr3[0]);
             BigInteger reserveOut = new BigInteger(arrOfStr3[1]);
 
-            amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
+            amounts[i - 1] = getAmountIn(new BigInteger(amounts[i]), reserveIn, reserveOut).toString();
         }
         return amounts;
     }
