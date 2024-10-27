@@ -32,9 +32,9 @@ public class NulswapPair implements Contract{
     private static Address BURNER_ADDR          = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burner Address
     private static BigInteger Q112              = BigInteger.valueOf(2).pow(112);                       // 2^112
 
-    private BigInteger THREE = BigInteger.valueOf(3);                          // Three
-    private BigInteger TWO   = BigInteger.valueOf(2);                          // Two
-    private BigInteger ONE_THOUSAND   = BigInteger.valueOf(1000);              // One Thousand
+    private BigInteger THREE          = BigInteger.valueOf(3);                          // Three
+    private BigInteger TWO            = BigInteger.valueOf(2);                          // Two
+    private BigInteger ONE_THOUSAND   = BigInteger.valueOf(1000);                       // One Thousand
 
     private Address factory;                    // Factory Address
     private Address lp;                         // Lp Token
@@ -74,7 +74,14 @@ public class NulswapPair implements Contract{
      *
      * */
     public NulswapPair() {
-        factory = Msg.sender();
+
+        factory              = Msg.sender();
+        reserve0             = BigInteger.ZERO;
+        reserve1             = BigInteger.ZERO;
+        price0CumulativeLast =  BigInteger.ZERO;
+        price1CumulativeLast =  BigInteger.ZERO;
+        kLast                = BigInteger.ZERO;
+        blockTimestampLast   = BigInteger.ZERO;
     }
 
     /**
@@ -102,7 +109,7 @@ public class NulswapPair implements Contract{
      * @param y Amount to encode
      * */
     private BigInteger encode(BigInteger y){
-        return y.multiply(Q112); // never overflows
+        return y.multiply(Q112);
     }
 
     /**
@@ -217,11 +224,11 @@ public class NulswapPair implements Contract{
 
         lock();
 
-        BigInteger balance0 = safeBalanceOf(token0, Msg.address()); //IERC20(token0).balanceOf(address(this));
-        BigInteger balance1 = safeBalanceOf(token1, Msg.address()); //IERC20(token1).balanceOf(address(this));
+        BigInteger balance0     = safeBalanceOf(token0, Msg.address()); //IERC20(token0).balanceOf(address(this));
+        BigInteger balance1     = safeBalanceOf(token1, Msg.address()); //IERC20(token1).balanceOf(address(this));
 
-        BigInteger amount0  = balance0.subtract(reserve0);
-        BigInteger amount1  = balance1.subtract(reserve1);
+        BigInteger amount0      = balance0.subtract(reserve0);
+        BigInteger amount1      = balance1.subtract(reserve1);
 
         boolean feeOn           = _mintFee(reserve0, reserve1);
         BigInteger _totalSupply = safeTotalSupply(lp); // Must be defined here since totalSupply can update in _mintFee
@@ -380,4 +387,68 @@ public class NulswapPair implements Contract{
         require(b, "NulswapV3: Failed to transfer");
     }
 
+    @View
+    public Address getFactory(){
+        return factory;
+    }
+
+    @View
+    public Address getLP(){
+        return lp;
+    }
+
+    @View
+    public Address getToken0(){
+        return token0;
+    }
+
+    @View
+    public Address getToken1(){
+        return token1;
+    }
+
+    @View
+    public BigInteger getReserve0(){
+        return reserve0;
+    }
+
+    @View
+    public BigInteger getReserve1(){
+        return reserve1;
+    }
+
+    @View
+    public BigInteger getBlockTimeStampLast(){
+        return blockTimestampLast;
+    }
+
+    @View
+    public BigInteger getPrice0CumulativeLast(){
+        return price0CumulativeLast;
+    }
+
+    @View
+    public BigInteger getPrice1CumulativeLast(){
+        return price1CumulativeLast;
+    }
+
+    @View
+    public BigInteger getKLast(){
+        return kLast;
+    }
+
+    @View
+    public Integer getUnlocked(){
+        return unlocked;
+    }
+
+    @View
+    public Address getBurnerAddress(){
+        return BURNER_ADDR;
+    }
+
+    @View
+    public BigInteger getQ112(){
+        return Q112;
+    }
 }

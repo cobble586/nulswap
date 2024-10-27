@@ -36,6 +36,7 @@ public class NulswapLPToken extends Ownable implements Contract, Token {
     private Address owner;
 
     private Map<Address, BigInteger> balances = new HashMap<Address, BigInteger>();
+
     private Map<Address, Map<Address, BigInteger>> allowed = new HashMap<Address, Map<Address, BigInteger>>();
     /**
      * token跨链系统处理合约

@@ -1,4 +1,5 @@
 Token$ApprovalEvent.class
+NulswapFactory.class
 Ownable.class
 Token$TransferEvent.class
 Token.class

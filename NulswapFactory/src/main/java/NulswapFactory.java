@@ -63,7 +63,7 @@ public class NulswapFactory extends Ownable implements Contract{
 
         require(getPair.get(token0) == null || value == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
 
-        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgzFMHJST31LPXG59utwyzyYX6rtPKx"), new String[]{"wNuls", "WNULS", "1", "8"});
+        String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6Hgn98z8poHfegHtqAdkfS9ATfazKo6h"), new String[]{});
         Address pair = new Address(pairAddr);
 
         initialize(pair, token0, token1);
