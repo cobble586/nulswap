@@ -4,6 +4,8 @@ import io.nuls.contract.sdk.annotation.Required;
 import io.nuls.contract.sdk.annotation.View;
 import org.checkerframework.checker.units.qual.A;
 import io.nuls.contract.sdk.event.DebugEvent;
+import io.nuls.contract.sdk.annotation.*;
+import io.nuls.contract.sdk.Utils.*;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -14,17 +16,27 @@ import java.util.Map;
 import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 
+
+
 /**
  * @title   Nulswap Router
  *
  * @author  Pedro G. S. Ferreira
  *
  */
-public class NulswapRouter implements Contract{
+public class NulswapRouter extends Ownable implements Contract{
 
     /** Variables **/
     private Address factory;                     // Factory
     private Address WNULS;                       // WNULS
+    private Address treasury = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");
+
+    private static final BigInteger BASIS_POINTS = BigInteger.valueOf(10000);
+    private BigInteger platformFee;
+    private BigInteger refFee;
+
+    private Map<Integer, Map<Integer, Address>> _wAssets;
+    private Map<Address, Boolean> blacklist;
 
     private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
 
@@ -35,8 +47,12 @@ public class NulswapRouter implements Contract{
      * @param _WNULS   WNULS Address
      */
     public NulswapRouter(Address _factory, Address _WNULS){
-        factory = _factory;
-        WNULS   = _WNULS;
+        factory     = _factory;
+        WNULS       = _WNULS;
+        _wAssets    = new HashMap<Integer, Map<Integer, Address>>();
+        blacklist   = new HashMap<Address, Boolean>();
+        platformFee = BigInteger.valueOf(100);
+        refFee      = BigInteger.valueOf(50);
     }
 
     /**
@@ -46,6 +62,10 @@ public class NulswapRouter implements Contract{
      */
     protected void ensure(BigInteger deadline) {
         require(deadline.compareTo(BigInteger.valueOf(Block.timestamp())) >= 0, "UniswapV2Router: EXPIRED");
+    }
+
+    protected void blacklist() {
+        require(blacklist.get(Msg.sender()) != null && !blacklist.get(Msg.sender()), "NulswapV3: Blacklisted");
     }
 
     /**
@@ -135,6 +155,7 @@ public class NulswapRouter implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+        blacklist();
 
         String addLiqRes        = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
 
@@ -256,7 +277,7 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      * */
-    public String removeLiquidityETH(
+    public String removeLiquidityNuls(
             Address token,
             BigInteger liquidity,
             BigInteger amountTokenMin,
@@ -287,6 +308,23 @@ public class NulswapRouter implements Contract{
         return amountToken + "," + amountETH;
     }
 
+    private BigInteger takeFee(BigInteger amountIn, Address payingToken, Address ref){
+
+        BigInteger fee = amountIn.multiply(platformFee).divide(BASIS_POINTS);
+
+        BigInteger referralFee = BigInteger.ZERO;
+        if(!ref.equals(BURNER_ADDR)){
+            referralFee = amountIn.multiply(refFee).divide(BASIS_POINTS);
+        }
+
+        safeTransferFrom(payingToken, Msg.sender(),treasury, fee.subtract(referralFee));
+        safeTransferFrom(payingToken, Msg.sender(),  ref, referralFee);
+
+        amountIn = amountIn.subtract(fee);
+
+        return amountIn;
+    }
+
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
     private void _swap(String[]  amounts, String[] path, Address _to){
@@ -311,7 +349,7 @@ public class NulswapRouter implements Contract{
             }
             Utils.emit(new DebugEvent("test2", "3..3.3"));
             Address to = (i < path.length - 2 ) ? safeGetPair(output, new Address(path[i + 2])) : _to;
-            Utils.emit(new DebugEvent("test2", "3..3.3.1"+safeGetPair(input, output).toString()+","+to.toString()));
+
            // IUniswapV2Pair(safeGetPair(input, output)).swap(amount0Out, amount1Out, to);
             safeSwap(safeGetPair(input, output), amount0Out, amount1Out, to);
         }
@@ -327,20 +365,25 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      * */
+    @JSONSerializable
     public String[] swapExactTokensForTokens(
             BigInteger amountIn,
             BigInteger amountOutMin,
             String[] path,
             Address to,
-            BigInteger deadline
+            BigInteger deadline,
+            Address ref
     ){
         ensure(deadline);
+        blacklist();
+
+       amountIn = takeFee(amountIn, new Address(path[0]), ref);
 
         String[] amounts = getAmountsOut(amountIn, path);
-        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
         Utils.emit(new DebugEvent("test2", "3"));
         safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
-        Utils.emit(new DebugEvent("test2", "3..3"));
+
         _swap(amounts, path, to);
         Utils.emit(new DebugEvent("test2", "4"));
         return amounts;
@@ -354,6 +397,7 @@ public class NulswapRouter implements Contract{
      * @param to Address that will receive the output token
      * @param deadline
      */
+    @JSONSerializable
     public String[] swapTokensForExactTokens(
             BigInteger amountOut,
             BigInteger amountInMax,
@@ -381,7 +425,8 @@ public class NulswapRouter implements Contract{
      * @param deadline
      * */
     @Payable
-   public String[] swapExactETHForTokens(
+    @JSONSerializable
+   public String[] swapExactNulsForTokens(
            BigInteger amountOutMin,
            String[] path,
            Address to,
@@ -409,7 +454,8 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      * */
-    public String[] swapTokensForExactETH(
+    @JSONSerializable
+    public String[] swapTokensForExactNuls(
             BigInteger amountOut,
             BigInteger amountInMax,
             String[] path,
@@ -436,7 +482,8 @@ public class NulswapRouter implements Contract{
      * @param to
      * @param deadline
      */
-    public String[] swapExactTokensForETH(
+    @JSONSerializable
+    public String[] swapExactTokensForNuls(
             BigInteger amountIn,
             BigInteger amountOutMin,
             String[] path,
@@ -466,7 +513,8 @@ public class NulswapRouter implements Contract{
      * @param deadline
      */
     @Payable
-    public String[] swapETHForExactTokens(
+    @JSONSerializable
+    public String[] swapNulsForExactTokens(
             BigInteger amountOut,
             String[] path,
             Address to,
@@ -483,6 +531,506 @@ public class NulswapRouter implements Contract{
         _swap(amounts, path, to);
 
         if (Msg.value().compareTo(new BigInteger(amounts[0])) > 0) safeTransferETH(Msg.sender(), Msg.value().subtract(new BigInteger(amounts[0]))); // refund dust eth, if any
+        return amounts;
+    }
+
+    /**
+     *
+     *
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapExactWAssetForTokens(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(val, path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
+
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        _swap(amounts, path, to);
+
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param amountInMax
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @JSONSerializable
+    public String[] swapTokensForExactWAsset(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOut,
+            BigInteger amountInMax,
+            String[] path,
+            Address to,
+            BigInteger deadline)
+    {
+        ensure(deadline);
+        require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+
+        require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
+        _swap(amounts, path, Msg.address());
+        withdrawWAsset(getMUltiwAsset(chainId, assetId),new BigInteger(amounts[amounts.length - 1]) );
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId, assetId);
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountIn
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @JSONSerializable
+    public String[] swapExactTokensForWAsset(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountIn,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(new Address(path[path.length - 1]).equals(WNULS),"UniswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(amountIn, path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair(new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
+        _swap(amounts, path, Msg.address());
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId, assetId);
+
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapWAssetForExactTokens(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOut,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+
+        depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
+        _swap(amounts, path, to);
+
+        if (val.compareTo(new BigInteger(amounts[0])) > 0) safeTransferWAsset(Msg.sender(), val.subtract(new BigInteger(amounts[0])), chainId, assetId); // refund dust eth, if any
+        return amounts;
+    }
+
+    /**
+     *
+     *
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @Payable
+    @JSONSerializable
+    public String[] swapExactNulsForWAsset(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(Msg.value(), path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        depositNuls(new BigInteger(amounts[0])); //IWETH(WETH).deposit{value: amounts[0]}();
+
+        require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        _swap(amounts, path, to);
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId, assetId);
+
+
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param amountInMax
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapWAssetForExactNuls(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOut,
+            BigInteger amountInMax,
+            String[] path,
+            Address to,
+            BigInteger deadline)
+    {
+        ensure(deadline);
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+
+        depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
+        _swap(amounts, path, Msg.address());
+        withdrawNuls(new BigInteger(amounts[amounts.length - 1]));
+        safeTransferETH(to, new BigInteger(amounts[amounts.length - 1]));
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountIn
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapExactWAssetForNuls(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountIn,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(val, path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
+
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        _swap(amounts, path, Msg.address());
+
+        withdrawNuls(new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferETH(to, new BigInteger(amounts[amounts.length - 1]));
+
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @Payable
+    @JSONSerializable
+    public String[] swapNulsForExactWAsset(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOut,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+        require(new BigInteger(amounts[0]).compareTo(Msg.value()) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+
+        depositNuls(new BigInteger(amounts[0]));
+        require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
+        _swap(amounts, path, to);
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId),new BigInteger(amounts[amounts.length - 1]) );
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId, assetId);
+        return amounts;
+    }
+
+    /**
+     *
+     *
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapExactWAssetForWAsset(
+            Integer chainId,
+            Integer assetId,
+            Integer chainId2,
+            Integer assetId2,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(val, path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
+
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        _swap(amounts, path, to);
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId2, assetId2);
+
+
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param amountInMax
+     * @param path
+     * @param to
+     * @param deadline
+     * */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapWAssetForExactWAsset(
+            Integer chainId,
+            Integer assetId,
+            Integer chainId2,
+            Integer assetId2,
+            BigInteger amountOut,
+            BigInteger amountInMax,
+            String[] path,
+            Address to,
+            BigInteger deadline)
+    {
+        ensure(deadline);
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+
+        depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
+        _swap(amounts, path, Msg.address());
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId),new BigInteger(amounts[amounts.length - 1]) );
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId2, assetId2);
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountOut
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapWAssetForExactWAsset(
+            Integer chainId,
+            Integer assetId,
+            Integer chainId2,
+            Integer assetId2,
+            BigInteger amountOut,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3Router: INVALID_PATH");
+        String[] amounts = getAmountsIn(amountOut, path);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+
+        depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
+        _swap(amounts, path, to);
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId),new BigInteger(amounts[amounts.length - 1]) );
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId, assetId);
+        return amounts;
+    }
+
+    /**
+     *
+     * @param amountIn
+     * @param amountOutMin
+     * @param path
+     * @param to
+     * @param deadline
+     */
+    @PayableMultyAsset
+    @JSONSerializable
+    public String[] swapExactWAssetForWAsset(
+            Integer chainId,
+            Integer assetId,
+            Integer chainId2,
+            Integer assetId2,
+            BigInteger amountIn,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
+        String[] amounts = getAmountsOut(val, path);
+
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
+
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        _swap(amounts, path, Msg.address());
+
+        withdrawWAsset(getMUltiwAsset(chainId, assetId), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
+        safeTransferWAsset(to, new BigInteger(amounts[amounts.length - 1]), chainId2, assetId2);
+
+
         return amounts;
     }
 
@@ -505,7 +1053,7 @@ public class NulswapRouter implements Contract{
             token1 = tokenA;
         }
 
-        require(token0 != null, "UniswapV2Library: ZERO_ADDRESS");
+        require(token0 != null, "NulswapV2Library: ZERO_ADDRESS");
         return token0 + "," + token1;
     }
 
@@ -609,6 +1157,7 @@ public class NulswapRouter implements Contract{
      * @param path
      * */
     @View
+    @JSONSerializable
     public String[] getAmountsOut(BigInteger amountIn, String[] path){
 
         require(path.length >= 2, "NulswapV3: INVALID_PATH");
@@ -636,6 +1185,7 @@ public class NulswapRouter implements Contract{
      * @param path
      * */
     @View
+    @JSONSerializable
     public String[] getAmountsIn(BigInteger amountOut, String[] path) {
 
         require(path.length >= 2, "NulswapV3: INVALID_PATH");
@@ -779,6 +1329,22 @@ public class NulswapRouter implements Contract{
     }
 
     /**
+     *
+     * Safe Transfer
+     *
+     * @param recipient
+     * @param amount
+     * */
+    private void safeTransferWAsset(
+            @Required Address recipient,
+            @Required BigInteger amount,
+            @Required Integer chain,
+            @Required Integer asset
+    ){
+        recipient.transfer(amount,chain, asset);
+    }
+
+    /**
      *  Transfer token from the address from to the recipient address
      *
      * @param token Token Address
@@ -848,6 +1414,108 @@ public class NulswapRouter implements Contract{
         //Require that the withdraw was successful
         require(new Boolean(rWithdraw), "NulswapRouter: Withdraw did not succeed!");
         //emit(new TokenPurchase(WNULS, v, v));
+    }
+
+    // Deposit multiasset and get wAsset
+    private void depositMultiAsset(@Required BigInteger value, @Required int chainA, @Required int assetA, int idx) {
+
+        //Require that the contract does not sends
+        require(!Msg.sender().equals(Msg.address()));
+
+        //Require that the contract does not sends
+        require(Msg.multyAssetValues().length == 1 || Msg.multyAssetValues().length == 2 , "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[idx];
+
+        int assetId = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger v = mToken1.getValue();
+
+        //Utils.emit(new DebugEvent("clinitTest log3", assetId + ", "+ chain + ", "+ v + ", "+ value));
+
+        require(value.compareTo(v) == 0 && chainA == chain && assetA == assetId, "NulswapV1: Amount deposited does not match");
+
+        Address routerAsset = getMUltiwAsset(chain, assetId);
+        //Utils.emit(new DebugEvent("clinitTest log4", assetId + ", "+ chain + ", "+ v + ", "+ value));
+
+
+        require(routerAsset != null, "NulswapV1: routerAsset is not yet in the router contract");
+
+        MultyAssetValue vi = new MultyAssetValue(value,chain, assetId);
+        MultyAssetValue[] vii = new MultyAssetValue[1];
+        vii[0] = vi;
+        //Utils.emit(new DebugEvent("clinitTest log5", assetId + ", "+ chain + ", "+ v + ", "+ value));
+
+
+        String[][] args = new String[][]{new String[]{v.toString()}};
+        String rDeposit = routerAsset.callWithReturnValue("deposit", "", args, BigInteger.ZERO, vii);
+
+        require(new Boolean(rDeposit), "Deposit did not succeed");
+    }
+
+    //Withdraw asset from the asset contract - must be always private
+    private void withdrawWAsset(@Required Address wAsset, @Required BigInteger v) {
+
+        /*create approve to transfer tokens to the wnuls contract
+        String[][] argsApprove = new String[][]{new String[]{wAsset.toString()}, new String[]{v.toString()}};
+        String rApprove = wNull.callWithReturnValue("approve", null, argsApprove, BigInteger.ZERO);*/
+
+       // require(new Boolean(rApprove), "NulswapV1: Approve did not succeeded!");
+        //Utils.emit(new DebugEvent("clinitTest log3-3", "JJ "+v+" "+ Msg.sender()+ getTokenBalance(Msg.address(), wAsset)));
+        String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.sender().toString()}};
+        String rWithdraw = wAsset.callWithReturnValue("withdraw", null, args, BigInteger.ZERO);
+        require(new Boolean(rWithdraw), "NulswapV1: Withdraw did not succeed");
+    }
+
+    public Address getMUltiwAsset(@Required int chainId, @Required int assetId ) {
+      //  require(contractCanDeploy || !Msg.sender().isContract(), "NulswapV1: contract can not call this function");
+        require(chainId >= 0 && assetId >= 0, "NulswapV1: Invalid chain id or Invalid assetId");
+
+        if(_wAssets.get(chainId) == null || _wAssets.get(chainId).get(assetId) == null){
+            // Utils.emit(new DebugEvent("clinitTest log114", assetId + ", " + ", " + ", "));
+
+            String _asset =  Utils.deploy(new String[]{ "wasset", "wS"+BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgmfUyJppgN5Y9KSFLPc4shpWrzqGnN"), new String[]{"wAsset", "wAsset", "1", "8", String.valueOf(chainId), String.valueOf(assetId), Msg.address().toString()});
+            Map<Integer, Address> a ;
+            if(_wAssets.get(chainId) == null ){
+                a = new HashMap<>();
+            }else{
+                a = _wAssets.get(chainId);
+            }
+
+            a.put(assetId, new Address(_asset));
+            _wAssets.put(chainId, a);
+        }
+        //Utils.emit(new DebugEvent("clinitTest log411", assetId + ", " + ", " + ", "));
+
+        return _wAssets.get(chainId).get(assetId);
+    }
+
+    public void blacklistAddress(Address user){
+        onlyOwner();
+        blacklist.put(user, true);
+    }
+
+    public void unBlacklistAddress(Address user){
+        onlyOwner();
+        blacklist.put(user, false);
+    }
+
+    public void setTreasury(Address newTreasury){
+        onlyOwner();
+        treasury = newTreasury;
+    }
+
+    public void setRefFee(BigInteger newRefFee){
+        onlyOwner();
+        require(newRefFee.compareTo(platformFee) < 0, "NulswapRouterV3: Referral fee must be lower than platform");
+        refFee = newRefFee;
+    }
+
+    public void setPlatformFee(BigInteger newPlatformFee){
+        onlyOwner();
+        require(newPlatformFee.compareTo(platformFee) > 0, "NulswapRouterV3: Referral fee must be lower than platform");
+        platformFee = newPlatformFee;
     }
 
 }

@@ -5,6 +5,7 @@ import io.nuls.contract.sdk.annotation.View;
 import static io.nuls.contract.sdk.Utils.require;
 
 public class Ownable {
+
     /**
      * 合约创建者
      */
@@ -24,5 +25,11 @@ public class Ownable {
 
     protected void onlyOwner() {
         require(Msg.sender().equals(owner), "Only the owner of the contract can execute it.");
+    }
+
+    public void setNewOwner(Address newOwner){
+        onlyOwner();
+        require(newOwner != null, "Invalid New Owner");
+        owner = newOwner;
     }
 }
