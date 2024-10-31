@@ -21,6 +21,8 @@ import static io.nuls.contract.sdk.Utils.require;
 /**
  * @title   Nulswap Router
  *
+ * @dev Implements Nulswap general logic, Nulswap Fees and Blacklist
+ *
  * @author  Pedro G. S. Ferreira
  *
  */
@@ -1597,7 +1599,7 @@ public class NulswapRouter extends Ownable implements Contract{
         platformFee = newPlatformFee;
     }
 
-    public void recoverLostNuls(BigInteger newPlatformFee){
+    public void recoverLostNuls(){
         onlyOwner();
         Msg.sender().transfer(Msg.address().balance());
     }
