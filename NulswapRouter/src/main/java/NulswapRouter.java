@@ -487,6 +487,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ) {
         ensure(deadline);
+        blacklist();
 
        String resVal = removeLiquidity(
                 token,
@@ -505,6 +506,49 @@ public class NulswapRouter extends Ownable implements Contract{
         withdrawNuls(amountETH);
 
         safeTransferETH(to, amountETH);
+
+        return amountToken + "," + amountETH;
+    }
+
+    /**
+     *
+     * @param token
+     * @param liquidity
+     * @param amountTokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     * */
+    public String removeLiquidityWAsset(
+            Integer chainId,
+            Integer assetId,
+            Address token,
+            BigInteger liquidity,
+            BigInteger amountTokenMin,
+            BigInteger amountETHMin,
+            Address to,
+            BigInteger deadline
+    ) {
+        ensure(deadline);
+        blacklist();
+
+        String resVal = removeLiquidity(
+                token,
+                _wAssets.get(chainId).get(assetId),
+                liquidity,
+                amountTokenMin,
+                amountETHMin,
+                Msg.address(),
+                deadline
+        );
+        String[] arrOfStr       = resVal.split(",", 2);
+        BigInteger amountToken  = new BigInteger(arrOfStr[0]);
+        BigInteger amountETH    = new BigInteger(arrOfStr[1]);
+
+        safeTransfer(token, to, amountToken);
+        withdrawWAsset(_wAssets.get(chainId).get(assetId), amountETH);
+
+        safeTransferWAsset(to, amountETH, chainId, assetId);
 
         return amountToken + "," + amountETH;
     }
