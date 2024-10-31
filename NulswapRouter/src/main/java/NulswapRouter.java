@@ -1604,4 +1604,14 @@ public class NulswapRouter extends Ownable implements Contract{
         Msg.sender().transfer(Msg.address().balance());
     }
 
+    public void recoverLostWAssets(Integer chainId, Integer assetId){
+        onlyOwner();
+        Msg.sender().transfer(Msg.address().balance(), chainId, assetId);
+    }
+
+    public void recoverLostTokens(Address token_){
+        onlyOwner();
+        safeTransfer(token_, Msg.sender(), safeBalanceOf(token_, Msg.sender()));
+    }
+
 }
