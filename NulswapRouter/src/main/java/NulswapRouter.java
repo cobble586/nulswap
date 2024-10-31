@@ -252,6 +252,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ) {
         ensure(deadline);
+        blacklist();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -314,6 +315,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ) {
         ensure(deadline);
+        blacklist();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -380,6 +382,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ) {
         ensure(deadline);
+        blacklist();
 
         require(Msg.multyAssetValues().length == 2, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -443,6 +446,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+        blacklist();
 
         Address pair = safeGetPair(tokenA, tokenB);
         safeTransferFrom(safeGetLP(pair), Msg.sender(), pair, liquidity);
@@ -519,6 +523,53 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param to
      * @param deadline
      * */
+    public String removeLiquidityNulsWAsset(
+            Integer chainId,
+            Integer assetId,
+            Address token,
+            BigInteger liquidity,
+            BigInteger amountTokenMin,
+            BigInteger amountETHMin,
+            Address to,
+            BigInteger deadline
+    ) {
+        ensure(deadline);
+        blacklist();
+
+        String resVal = removeLiquidity(
+                WNULS,
+                _wAssets.get(chainId).get(assetId),
+                liquidity,
+                amountTokenMin,
+                amountETHMin,
+                Msg.address(),
+                deadline
+        );
+        String[] arrOfStr       = resVal.split(",", 2);
+        BigInteger amountToken  = new BigInteger(arrOfStr[0]);
+        BigInteger amountETH    = new BigInteger(arrOfStr[1]);
+
+
+        withdrawNuls(amountToken);
+
+        safeTransferETH(to, amountToken);
+
+        withdrawWAsset(_wAssets.get(chainId).get(assetId), amountETH);
+
+        safeTransferWAsset(to, amountETH, chainId, assetId);
+
+        return amountToken + "," + amountETH;
+    }
+
+    /**
+     *
+     * @param token
+     * @param liquidity
+     * @param amountTokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     * */
     public String removeLiquidityWAsset(
             Integer chainId,
             Integer assetId,
@@ -549,6 +600,55 @@ public class NulswapRouter extends Ownable implements Contract{
         withdrawWAsset(_wAssets.get(chainId).get(assetId), amountETH);
 
         safeTransferWAsset(to, amountETH, chainId, assetId);
+
+        return amountToken + "," + amountETH;
+    }
+
+    /**
+     *
+     * @param token
+     * @param liquidity
+     * @param amountTokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     * */
+    public String removeLiquidityWAssetWAsset(
+            Integer chainId,
+            Integer assetId,
+            Integer chainId2,
+            Integer assetId2,
+            Address token,
+            BigInteger liquidity,
+            BigInteger amountTokenMin,
+            BigInteger amountETHMin,
+            Address to,
+            BigInteger deadline
+    ) {
+        ensure(deadline);
+        blacklist();
+
+        String resVal = removeLiquidity(
+                token,
+                _wAssets.get(chainId).get(assetId),
+                liquidity,
+                amountTokenMin,
+                amountETHMin,
+                Msg.address(),
+                deadline
+        );
+        String[] arrOfStr       = resVal.split(",", 2);
+        BigInteger amountToken  = new BigInteger(arrOfStr[0]);
+        BigInteger amountETH    = new BigInteger(arrOfStr[1]);
+
+
+        withdrawWAsset(_wAssets.get(chainId).get(assetId), amountToken);
+
+        safeTransferWAsset(to, amountToken, chainId, assetId);
+
+        withdrawWAsset(_wAssets.get(chainId2).get(assetId2), amountETH);
+
+        safeTransferWAsset(to, amountETH, chainId2, assetId2);
 
         return amountToken + "," + amountETH;
     }
@@ -929,6 +1029,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+        blacklist();
 
         require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
@@ -973,6 +1074,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+        blacklist();
 
         require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsOut(Msg.value(), path);
@@ -1217,6 +1319,7 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     *  Swap Multiassets for an exact amount of Multiasset
      *
      * @param amountOut
      * @param path
@@ -1751,6 +1854,12 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new Boolean(rWithdraw), "NulswapV1: Withdraw did not succeed");
     }
 
+    /**
+     * Get MultiAsset Wrapped Contract
+     *
+     * @param chainId
+     * @param assetId
+     * */
     public Address getMUltiwAsset(@Required int chainId, @Required int assetId ) {
       //  require(contractCanDeploy || !Msg.sender().isContract(), "NulswapV1: contract can not call this function");
         require(chainId >= 0 && assetId >= 0, "NulswapV1: Invalid chain id or Invalid assetId");
@@ -1774,30 +1883,54 @@ public class NulswapRouter extends Ownable implements Contract{
         return _wAssets.get(chainId).get(assetId);
     }
 
+    /**
+     * Blacklist Address
+     *
+     * @param user
+     * */
     public void blacklistAddress(Address user){
         onlyOwner();
         blacklist.put(user, true);
     }
 
+    /**
+     * Unblacklist Address
+     *
+     * @param user
+     * */
     public void unBlacklistAddress(Address user){
         onlyOwner();
         blacklist.put(user, false);
     }
 
+    /**
+     * Set new treasury
+     *
+     * @param newTreasury New treasury address
+     * */
     public void setTreasury(Address newTreasury){
         onlyOwner();
         treasury = newTreasury;
     }
 
+    /**
+     * Set new referral fee
+     *
+     * @param newRefFee
+     * */
     public void setRefFee(BigInteger newRefFee){
         onlyOwner();
         require(newRefFee.compareTo(platformFee) < 0, "NulswapRouterV3: Referral fee must be lower than platform");
         refFee = newRefFee;
     }
 
+    /**
+     * Set new platform fee
+     *
+     * */
     public void setPlatformFee(BigInteger newPlatformFee){
         onlyOwner();
-        require(newPlatformFee.compareTo(platformFee) > 0, "NulswapRouterV3: Referral fee must be lower than platform");
+        require(newPlatformFee.compareTo(refFee) > 0, "NulswapRouterV3: Referral fee must be lower than platform");
         platformFee = newPlatformFee;
     }
 
