@@ -27,18 +27,19 @@ import static io.nuls.contract.sdk.Utils.require;
 public class NulswapRouter extends Ownable implements Contract{
 
     /** Variables **/
-    private Address factory;                     // Factory
-    private Address WNULS;                       // WNULS
-    private Address treasury = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");
+    private Address factory;                                                            // Factory
+    private Address WNULS;                                                              // WNULS
+    private Address treasury = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");    // Treasury
 
-    private static final BigInteger BASIS_POINTS = BigInteger.valueOf(10000);
-    private BigInteger platformFee;
-    private BigInteger refFee;
+    private static final BigInteger BASIS_POINTS = BigInteger.valueOf(10000);           // Math Helper for percentages
+    private static final BigInteger MIN_TRANSFERABLE = BigInteger.valueOf(1000000);
+    private BigInteger platformFee;                                                     // Platform fee (in basis points)
+    private BigInteger refFee;                                                          // Referral fee (in basis points)
 
     private Map<Integer, Map<Integer, Address>> _wAssets;
     private Map<Address, Boolean> blacklist;
 
-    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
+    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burn Address
 
     /**
      * Constructor
@@ -220,8 +221,71 @@ public class NulswapRouter extends Ownable implements Contract{
 
         BigInteger liquidity =  safeMint(pair, to); // IUniswapV2Pair(pair).mint(to);
 
-        if (Msg.value().compareTo(amountETH) > 0)
+        if (Msg.value().compareTo(amountETH.add(MIN_TRANSFERABLE)) > 0)
             safeTransferETH(Msg.sender(), Msg.value().subtract(amountETH)); // refund dust eth, if any
+
+        return amountToken + "," + amountETH + "," + liquidity;
+    }
+
+
+    /**
+     *  **** ADD LIQUIDITY WITH NULS ****
+     *
+     * @param token Token Address
+     * @param amountTokenDesired Amount A
+     * @param amounttokenMin
+     * @param amountETHMin
+     * @param to
+     * @param deadline
+     */
+    @Payable
+    public String addLiquidityWAsset(
+            Integer chainId,
+            Integer assetId,
+            Address token,
+            BigInteger amountTokenDesired,
+            BigInteger amountTokenMin,
+            BigInteger amountETHMin,
+            Address to,
+            BigInteger deadline
+    ) {
+        ensure(deadline);
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+
+        String addLiqRes = _addLiquidity(
+                token,
+                WNULS,
+                amountTokenDesired,
+                val,
+                amountTokenMin,
+                amountETHMin
+        );
+
+        String[] arrOfStr       = addLiqRes.split(",", 2);
+        BigInteger amountToken  = new BigInteger(arrOfStr[0]);
+        BigInteger amountETH    = new BigInteger(arrOfStr[1]);
+
+        Address pair = safeGetPair(token, _wAssets.get(chainId).get(assetId));
+        safeTransferFrom(token, Msg.sender(), pair, amountToken);
+
+        depositMultiAsset(amountETH, chainId, assetId, 0);
+
+        safeTransfer(WNULS, pair, amountETH);
+
+        BigInteger liquidity =  safeMint(pair, to); // IUniswapV2Pair(pair).mint(to);
+
+        if (val.compareTo(amountETH.add(MIN_TRANSFERABLE)) > 0)
+            safeTransferWAsset(Msg.sender(), val.subtract(amountETH), chainId, assetId); // refund dust eth, if any
 
         return amountToken + "," + amountETH + "," + liquidity;
     }
@@ -308,6 +372,10 @@ public class NulswapRouter extends Ownable implements Contract{
         return amountToken + "," + amountETH;
     }
 
+    /**
+     * Take Fee from trade
+     *
+     * */
     private BigInteger takeFee(BigInteger amountIn, Address payingToken, Address ref){
 
         BigInteger fee = amountIn.multiply(platformFee).divide(BASIS_POINTS);
@@ -541,7 +609,7 @@ public class NulswapRouter extends Ownable implements Contract{
         require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, to);
 
-        if (Msg.value().compareTo(new BigInteger(amounts[0])) > 0) safeTransferETH(Msg.sender(), Msg.value().subtract(new BigInteger(amounts[0]))); // refund dust eth, if any
+        if (Msg.value().compareTo(new BigInteger(amounts[0]).add(MIN_TRANSFERABLE)) > 0) safeTransferETH(Msg.sender(), Msg.value().subtract(new BigInteger(amounts[0]))); // refund dust eth, if any
         return amounts;
     }
 
@@ -690,7 +758,7 @@ public class NulswapRouter extends Ownable implements Contract{
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, to);
 
-        if (val.compareTo(new BigInteger(amounts[0])) > 0) safeTransferWAsset(Msg.sender(), val.subtract(new BigInteger(amounts[0])), chainId, assetId); // refund dust eth, if any
+        if (val.compareTo(new BigInteger(amounts[0]).add(MIN_TRANSFERABLE)) > 0) safeTransferWAsset(Msg.sender(), val.subtract(new BigInteger(amounts[0])), chainId, assetId); // refund dust eth, if any
         return amounts;
     }
 
@@ -1527,6 +1595,11 @@ public class NulswapRouter extends Ownable implements Contract{
         onlyOwner();
         require(newPlatformFee.compareTo(platformFee) > 0, "NulswapRouterV3: Referral fee must be lower than platform");
         platformFee = newPlatformFee;
+    }
+
+    public void recoverLostNuls(BigInteger newPlatformFee){
+        onlyOwner();
+        Msg.sender().transfer(Msg.address().balance());
     }
 
 }
