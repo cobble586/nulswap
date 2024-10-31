@@ -17,7 +17,6 @@ import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 
 
-
 /**
  * @title   Nulswap Router
  *
@@ -1611,7 +1610,7 @@ public class NulswapRouter extends Ownable implements Contract{
 
     public void recoverLostTokens(Address token_){
         onlyOwner();
-        safeTransfer(token_, Msg.sender(), safeBalanceOf(token_, Msg.sender()));
+        safeTransfer(token_, Msg.sender(), safeBalanceOf(token_, Msg.address()));
     }
 
 }
