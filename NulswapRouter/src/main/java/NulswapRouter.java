@@ -65,7 +65,7 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     protected void blacklist() {
-        require(blacklist.get(Msg.sender()) != null && !blacklist.get(Msg.sender()), "NulswapV3: Blacklisted");
+        require(blacklist.get(Msg.sender()) == null || !blacklist.get(Msg.sender()), "NulswapV3: Blacklisted");
     }
 
     /**
@@ -315,10 +315,12 @@ public class NulswapRouter extends Ownable implements Contract{
         BigInteger referralFee = BigInteger.ZERO;
         if(!ref.equals(BURNER_ADDR)){
             referralFee = amountIn.multiply(refFee).divide(BASIS_POINTS);
+            if(referralFee.compareTo(BigInteger.ZERO) > 0){
+                safeTransferFrom(payingToken, Msg.sender(),  ref, referralFee);
+            }
         }
 
         safeTransferFrom(payingToken, Msg.sender(),treasury, fee.subtract(referralFee));
-        safeTransferFrom(payingToken, Msg.sender(),  ref, referralFee);
 
         amountIn = amountIn.subtract(fee);
 
@@ -381,11 +383,11 @@ public class NulswapRouter extends Ownable implements Contract{
 
         String[] amounts = getAmountsOut(amountIn, path);
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
-        Utils.emit(new DebugEvent("test2", "3"));
+
         safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
 
         _swap(amounts, path, to);
-        Utils.emit(new DebugEvent("test2", "4"));
+
         return amounts;
     }
 
@@ -406,6 +408,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ) {
         ensure(deadline);
+        blacklist();
 
         String[] amounts = getAmountsIn(amountOut, path);
         require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
@@ -430,12 +433,17 @@ public class NulswapRouter extends Ownable implements Contract{
            BigInteger amountOutMin,
            String[] path,
            Address to,
-           BigInteger deadline
+           BigInteger deadline,
+           Address ref
     ){
         ensure(deadline);
+        blacklist();
 
         require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
-        String[] amounts = getAmountsOut(Msg.value(), path);
+
+        BigInteger realVal = takeFee(Msg.value(), new Address(path[0]), ref);
+
+        String[] amounts = getAmountsOut(realVal, path);
 
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         depositNuls(new BigInteger(amounts[0])); //IWETH(WETH).deposit{value: amounts[0]}();
@@ -463,6 +471,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline)
     {
         ensure(deadline);
+        blacklist();
+
         require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
 
@@ -491,6 +501,7 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     ){
         ensure(deadline);
+        blacklist();
 
         require(new Address(path[path.length - 1]).equals(WNULS),"UniswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsOut(amountIn, path);
