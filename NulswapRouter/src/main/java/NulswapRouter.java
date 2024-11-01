@@ -241,6 +241,7 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param deadline
      */
     @Payable
+    @PayableMultyAsset
     public String addLiquidityWAsset(
             Integer chainId,
             Integer assetId,
@@ -304,6 +305,7 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param deadline
      */
     @Payable
+    @PayableMultyAsset
     public String addLiquidityNULSWAsset(
             Integer chainId,
             Integer assetId,
@@ -370,6 +372,7 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param deadline
      */
     @Payable
+    @PayableMultyAsset
     public String addLiquidityWAssetAndWAsset(
             Integer chainId,
             Integer assetId,
@@ -705,6 +708,69 @@ public class NulswapRouter extends Ownable implements Contract{
             safeSwap(safeGetPair(input, output), amount0Out, amount1Out, to);
         }
 
+    }
+
+    /** **** SWAP (supporting fee-on-transfer tokens) ****
+    // requires the initial amount to have already been sent to the first pair
+     */
+    private void _swapSupportingFeeOnTransferTokens(String[]  path, Address _to){
+
+        for (int i = 0; i < path.length - 1; i++) {
+            Address input  = new Address(path[i]);
+            Address output = new Address(path[i + 1]);
+
+            String[] arrOfStr2      = sortTokens(input, output).split(",", 2);
+            Address token0          = new Address(arrOfStr2[0]);
+
+            Address pair = safeGetPair(input, output);
+            BigInteger amountInput = BigInteger.ZERO;
+            BigInteger amountOutput = BigInteger.ZERO;
+
+            String[] arrOfStr3   = getReserves(input, output).split(",", 3);
+            BigInteger reserve0  = new BigInteger(arrOfStr3[0]);
+            BigInteger reserve1 = new BigInteger(arrOfStr3[1]);
+
+            BigInteger reserveInput, reserveOutput;
+            if(input.equals(token0)){
+                reserveInput = reserve0;
+                reserveOutput = reserve1;
+            }else{
+                reserveInput = reserve1;
+                reserveOutput = reserve0;
+            }
+            amountInput = safeBalanceOf(input, pair).subtract(reserveInput);
+            amountOutput = getAmountOut(amountInput, reserveInput, reserveOutput);
+
+            BigInteger amount0Out, amount1Out;
+            if(input.equals(token0)){
+                amount0Out = BigInteger.ZERO;
+                amount1Out = amountOutput;
+            }else{
+                amount0Out = amountOutput;
+                amount1Out = BigInteger.ZERO;
+            }
+
+            Address to = i < path.length - 2 ? safeGetPair(output, new Address(path[i + 2])) : _to;
+            safeSwap(safeGetPair(input, output), amount0Out, amount1Out, to);
+        }
+    }
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            uint amountIn,
+            uint amountOutMin,
+            address[] calldata path,
+            address to,
+            uint deadline
+    ) external virtual override ensure(deadline) {
+        TransferHelper.safeTransferFrom(
+                path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
+        );
+        uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+                IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
+                'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
     }
 
     /**
