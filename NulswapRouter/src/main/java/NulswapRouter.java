@@ -864,6 +864,32 @@ public class NulswapRouter extends Ownable implements Contract{
         );
     }
 
+    public void swapExactTokensForWAssetSupportingFeeOnTransferTokens(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountIn,
+            BigInteger amountOutMin,
+            String[]  path,
+            Address to,
+            BigInteger deadline
+    )
+    {
+        ensure(deadline);
+        blacklist();
+
+        require(new Address(path[path.length - 1]).equals(_wAssets.get(chainId).get(assetId)), "UniswapV2Router: INVALID_PATH");
+        safeTransferFrom(
+                new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), amountIn
+        );
+
+        _swapSupportingFeeOnTransferTokens(path, Msg.address());
+        BigInteger amountOut = safeBalanceOf(_wAssets.get(chainId).get(assetId), Msg.address());// IERC20(WETH).balanceOf(address(this));
+
+        require(amountOut.compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        withdrawWAsset(_wAssets.get(chainId).get(assetId), amountOut);
+        safeTransferWAsset(to, amountOut, chainId, assetId);
+    }
+
     /**
      *
      *
