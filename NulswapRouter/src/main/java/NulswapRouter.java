@@ -827,6 +827,43 @@ public class NulswapRouter extends Ownable implements Contract{
         safeTransferETH(to, amountOut);
     }
 
+    @PayableMultyAsset
+    public void  swapExactWAssetForTokensSupportingFeeOnTransferTokens(
+            Integer chainId,
+            Integer assetId,
+            BigInteger amountOutMin,
+            String[] path,
+            Address to,
+            BigInteger deadline
+    ){
+        ensure(deadline);
+        blacklist();
+
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "UniswapV2Router: INVALID_PATH");
+
+        require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
+
+        MultyAssetValue[] arAssets = Msg.multyAssetValues();
+        MultyAssetValue mToken1 = arAssets[0];
+
+        int asset = mToken1.getAssetId();
+        int chain = mToken1.getAssetChainId();
+        BigInteger val = mToken1.getValue();
+
+        require(chainId == chain && assetId == asset, "NulswapV3: Amount deposited does not match");
+
+        BigInteger amountIn = val;
+        depositMultiAsset(amountIn, chainId, assetId, 0);
+
+        safeTransferETH(safeGetPair(new Address(path[0]), new Address(path[1])), amountIn);
+        BigInteger balanceBefore = safeBalanceOf(new Address(path[path.length - 1]), to);//IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+                safeBalanceOf(new Address(path[path.length - 1]), to).subtract(balanceBefore).compareTo(amountOutMin) >= 0,
+                "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
+    }
+
     /**
      *
      *
