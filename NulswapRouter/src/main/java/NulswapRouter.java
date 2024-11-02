@@ -811,17 +811,18 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger deadline
     )
     {
-        ensure(deadline)
-        blacklist()
+        ensure(deadline);
+        blacklist();
 
-        require(path[path.length - 1] == WETH, "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
         safeTransferFrom(
-                path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amountIn
+                new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), amountIn
         );
-        _swapSupportingFeeOnTransferTokens(path, address(this));
-        uint amountOut = IERC20(WETH).balanceOf(address(this));
-        require(amountOut >= amountOutMin, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
 
+        _swapSupportingFeeOnTransferTokens(path, Msg.address());
+        BigInteger amountOut = safeBalanceOf(WNULS, Msg.address());// IERC20(WETH).balanceOf(address(this));
+
+        require(amountOut.compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         withdrawNuls(amountOut);
         safeTransferETH(to, amountOut);
     }
