@@ -32,10 +32,11 @@ public class NulswapRouter extends Ownable implements Contract{
     private Address WNULS;                                                              // WNULS
     private Address treasury = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");    // Treasury
 
-    private static final BigInteger BASIS_POINTS        = BigInteger.valueOf(10000);           // Math Helper for percentages
-    private static final BigInteger MIN_TRANSFERABLE    = BigInteger.valueOf(1000000);
+    private static final BigInteger BASIS_POINTS        = BigInteger.valueOf(10000);    // Math Helper for percentages
+    private static final BigInteger MIN_TRANSFERABLE    = BigInteger.valueOf(1000000);  // Minimum Transferable Amount
     private BigInteger platformFee;                                                     // Platform fee (in basis points)
     private BigInteger refFee;                                                          // Referral fee (in basis points)
+    private Boolean paused;
 
     private Map<Integer, Map<Integer, Address>> _wAssets;                               // Store MultiAssets Wrapped Tokens
     private Map<Address, Boolean> blacklist;                                            // Blacklisted Users
@@ -53,8 +54,9 @@ public class NulswapRouter extends Ownable implements Contract{
         WNULS       = _WNULS;
         _wAssets    = new HashMap<Integer, Map<Integer, Address>>();
         blacklist   = new HashMap<Address, Boolean>();
-        platformFee = BigInteger.valueOf(100);  // 1% platform fee
-        refFee      = BigInteger.valueOf(50);   // 0.5% referral fee
+        platformFee = BigInteger.valueOf(100);          // 1% platform fee
+        refFee      = BigInteger.valueOf(50);           // 0.5% referral fee
+        paused = false;
     }
 
     /**
@@ -68,6 +70,10 @@ public class NulswapRouter extends Ownable implements Contract{
 
     protected void blacklist() {
         require(blacklist.get(Msg.sender()) == null || !blacklist.get(Msg.sender()), "NulswapV3: Blacklisted");
+    }
+
+    protected void whenNotPaused() {
+        require(!paused, "NulswapV3: Paused");
     }
 
     /**
@@ -158,6 +164,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String addLiqRes        = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
 
@@ -200,6 +207,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String addLiqRes = _addLiquidity(
                 token,
@@ -254,6 +262,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -318,6 +327,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -386,6 +396,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(Msg.multyAssetValues().length == 2, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
@@ -450,6 +461,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         Address pair = safeGetPair(tokenA, tokenB);
         safeTransferFrom(safeGetLP(pair), Msg.sender(), pair, liquidity);
@@ -478,7 +490,9 @@ public class NulswapRouter extends Ownable implements Contract{
 
     /**
      *
-     * @param token
+     * Remove Liquidity in Token and Nuls
+     *
+     * @param token Token Contract Address
      * @param liquidity
      * @param amountTokenMin
      * @param amountETHMin
@@ -495,6 +509,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
        String resVal = removeLiquidity(
                 token,
@@ -518,8 +533,9 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     *  Remove Liquidity and MultiAsset
      *
-     * @param token
+     * @param token Token Contract Address
      * @param liquidity
      * @param amountTokenMin
      * @param amountETHMin
@@ -538,6 +554,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String resVal = removeLiquidity(
                 WNULS,
@@ -585,6 +602,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String resVal = removeLiquidity(
                 token,
@@ -630,6 +648,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String resVal = removeLiquidity(
                 token,
@@ -764,6 +783,7 @@ public class NulswapRouter extends Ownable implements Contract{
     )  {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         safeTransferFrom(
                 new Address(path[0]), Msg.sender(), safeGetPair(new Address(path[0]), new Address(path[1])), amountIn
@@ -788,6 +808,7 @@ public class NulswapRouter extends Ownable implements Contract{
     {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[0]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
 
@@ -813,6 +834,7 @@ public class NulswapRouter extends Ownable implements Contract{
     {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
         safeTransferFrom(
@@ -838,6 +860,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "UniswapV2Router: INVALID_PATH");
 
@@ -876,6 +899,7 @@ public class NulswapRouter extends Ownable implements Contract{
     {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[path.length - 1]).equals(_wAssets.get(chainId).get(assetId)), "UniswapV2Router: INVALID_PATH");
         safeTransferFrom(
@@ -910,6 +934,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         amountIn = takeFee(amountIn, new Address(path[0]), ref);
 
@@ -941,6 +966,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ) {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         String[] amounts = getAmountsIn(amountOut, path);
         require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
@@ -970,6 +996,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
 
@@ -1004,6 +1031,7 @@ public class NulswapRouter extends Ownable implements Contract{
     {
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
@@ -1035,6 +1063,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         amountIn = takeFee(amountIn, new Address(path[0]), ref);
 
@@ -1068,6 +1097,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
@@ -1101,6 +1131,7 @@ public class NulswapRouter extends Ownable implements Contract{
     ){
         ensure(deadline);
         blacklist();
+        whenNotPaused();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
