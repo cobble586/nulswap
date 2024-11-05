@@ -482,8 +482,8 @@ public class NulswapRouter extends Ownable implements Contract{
             amountB = amount0;
         }
 
-        require(amountA.compareTo(amountAMin) >= 0, "NulswapV2Router: INSUFFICIENT_A_AMOUNT");
-        require(amountB.compareTo(amountBMin) >= 0, "NulswapV2Router: INSUFFICIENT_B_AMOUNT");
+        require(amountA.compareTo(amountAMin) >= 0, "NulswapV3: INSUFFICIENT_A_AMOUNT");
+        require(amountB.compareTo(amountBMin) >= 0, "NulswapV3: INSUFFICIENT_B_AMOUNT");
 
         return amountA + "," + amountB;
     }
@@ -1033,7 +1033,7 @@ public class NulswapRouter extends Ownable implements Contract{
         blacklist();
         whenNotPaused();
 
-        require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
 
         require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
@@ -1178,7 +1178,7 @@ public class NulswapRouter extends Ownable implements Contract{
         blacklist();
         whenNotPaused();
 
-        require(path[path.length - 1].equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
 
         require(new BigInteger(amounts[0]).compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
