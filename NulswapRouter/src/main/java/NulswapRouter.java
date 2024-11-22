@@ -318,10 +318,8 @@ public class NulswapRouter extends Ownable implements Contract{
     public String addLiquidityNULSWAsset(
             Integer chainId,
             Integer assetId,
-            Address token,
-            BigInteger amountTokenDesired,
-            BigInteger amountTokenMin,
-            BigInteger amountETHMin,
+            BigInteger amountWnulsMin,
+            BigInteger amountWAssetMin,
             Address to,
             BigInteger deadline
     ) {
@@ -330,8 +328,6 @@ public class NulswapRouter extends Ownable implements Contract{
         whenNotPaused();
 
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
-
-        require(amountTokenDesired.compareTo(Msg.value()) <= 0, "NulswapV3: Insufficient Nuls");
 
         MultyAssetValue[] arAssets = Msg.multyAssetValues();
         MultyAssetValue mToken1 = arAssets[0];
@@ -347,28 +343,28 @@ public class NulswapRouter extends Ownable implements Contract{
                 _wAssets.get(chainId).get(assetId),
                 Msg.value(),
                 val,
-                amountTokenMin,
-                amountETHMin
+                amountWnulsMin,
+                amountWAssetMin
         );
 
         String[] arrOfStr       = addLiqRes.split(",", 2);
         BigInteger amountToken  = new BigInteger(arrOfStr[0]);
-        BigInteger amountETH    = new BigInteger(arrOfStr[1]);
+        BigInteger amountWasset   = new BigInteger(arrOfStr[1]);
 
-        Address pair = safeGetPair(token, _wAssets.get(chainId).get(assetId));
+        Address pair = safeGetPair(WNULS, _wAssets.get(chainId).get(assetId));
 
         depositNuls(Msg.value());
-        depositMultiAsset(amountETH, chainId, assetId, 0);
+        depositMultiAsset(amountWasset, chainId, assetId, 0);
 
-        safeTransfer(WNULS, pair, amountETH);
-        safeTransfer(_wAssets.get(chainId).get(assetId), pair, amountETH);
+        safeTransfer(WNULS, pair, amountToken);
+        safeTransfer(_wAssets.get(chainId).get(assetId), pair, amountWasset);
 
         BigInteger liquidity =  safeMint(pair, to); // IUniswapV2Pair(pair).mint(to);
 
-        if (val.compareTo(amountETH.add(MIN_TRANSFERABLE)) > 0)
-            safeTransferWAsset(Msg.sender(), val.subtract(amountETH), chainId, assetId); // refund dust eth, if any
+        if (val.compareTo(amountWasset.add(MIN_TRANSFERABLE)) > 0)
+            safeTransferWAsset(Msg.sender(), val.subtract(amountWasset), chainId, assetId); // refund dust eth, if any
 
-        return amountToken + "," + amountETH + "," + liquidity;
+        return amountToken + "," + amountWasset + "," + liquidity;
     }
 
     /**
