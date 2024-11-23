@@ -17,6 +17,7 @@ public class Ownable {
         this.contractCreator = this.owner;
     }
 
+    @View
     public Address viewOwner() {
         return owner;
     }

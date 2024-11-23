@@ -29,14 +29,16 @@ import static io.nuls.contract.sdk.Utils.require;
  */
 public class NulswapPair implements Contract{
 
+    /** Constants **/
     private static BigInteger MINIMUM_LIQUIDITY = BigInteger.valueOf(1_000);                            // Minimum Liquidity
     private static Address BURNER_ADDR          = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burner Address
     private static BigInteger Q112              = BigInteger.valueOf(2).pow(112);                       // 2^112
 
-    private BigInteger THREE          = BigInteger.valueOf(3);                          // Three
-    private BigInteger TWO            = BigInteger.valueOf(2);                          // Two
-    private BigInteger ONE_THOUSAND   = BigInteger.valueOf(1000);                       // One Thousand
+    private static BigInteger THREE          = BigInteger.valueOf(3);                          // Three
+    private static BigInteger TWO            = BigInteger.valueOf(2);                          // Two
+    private static BigInteger ONE_THOUSAND   = BigInteger.valueOf(1000);                       // One Thousand
 
+    /** Variables **/
     private Address factory;                    // Factory Address
     private Address lp;                         // Lp Token
     private Address token0;                     // Pair Token0
@@ -225,7 +227,6 @@ public class NulswapPair implements Contract{
 
         lock();
 
-        Utils.emit(new DebugEvent("test2", "1.1.1"));
         BigInteger balance0     = safeBalanceOf(token0, Msg.address()); //IERC20(token0).balanceOf(address(this));
         BigInteger balance1     = safeBalanceOf(token1, Msg.address()); //IERC20(token1).balanceOf(address(this));
 
@@ -235,7 +236,6 @@ public class NulswapPair implements Contract{
         boolean feeOn           = _mintFee(reserve0, reserve1);
         BigInteger _totalSupply = safeTotalSupply(lp); // Must be defined here since totalSupply can update in _mintFee
 
-        Utils.emit(new DebugEvent("test2", "1.1.2"));
         BigInteger liquidity;
         if (_totalSupply.compareTo(BigInteger.ONE) == 0) {
             liquidity = sqrt(amount0.multiply(amount1)).subtract(MINIMUM_LIQUIDITY);
@@ -244,13 +244,11 @@ public class NulswapPair implements Contract{
             liquidity = min(amount0.multiply(_totalSupply).divide(reserve0), amount1.multiply(_totalSupply).divide(reserve1));
         }
 
-        Utils.emit(new DebugEvent("test2", "1.1.3"));
-
         require(liquidity.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
-        Utils.emit(new DebugEvent("test2", "1.1.4"));
+
         _update(balance0, balance1, reserve0, reserve1);
-        Utils.emit(new DebugEvent("test2", "1.1.5"));
+
         if (feeOn) kLast = reserve0.multiply(reserve1); // reserve0 and reserve1 are up-to-date
         //emit Mint(msg.sender, amount0, amount1);
 
@@ -296,8 +294,6 @@ public class NulswapPair implements Contract{
         // Lock Contract
         lock();
 
-        Utils.emit(new DebugEvent("test3", "1.1"));
-
         // One of the values must be higher than 0
         require(amount0Out.compareTo(BigInteger.ZERO) > 0 || amount1Out.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
         require(amount0Out.compareTo(reserve0) < 0 && amount1Out.compareTo(reserve1) < 0, "NulswapV3: INSUFFICIENT_LIQUIDITY");
@@ -306,28 +302,24 @@ public class NulswapPair implements Contract{
 
         require(to != token0 && to != token1, "NulswapV3: INVALID_TO");
 
-        Utils.emit(new DebugEvent("test3", "1.2"));
-
         if (amount0Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token0, to, amount0Out); // optimistically transfer tokens
         if (amount1Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token1, to, amount1Out); // optimistically transfer tokens
 
         balance0 = safeBalanceOf(token0, Msg.address()); //IERC20(_token0).balanceOf(address(this));
         balance1 = safeBalanceOf(token1, Msg.address()); //IERC20(_token1).balanceOf(address(this));
 
-        Utils.emit(new DebugEvent("test3", "1.3"));
         BigInteger amount0In = balance0.compareTo(reserve0.subtract(amount0Out)) > 0 ? balance0.subtract((reserve0.subtract(amount0Out))) : BigInteger.ZERO;
         BigInteger amount1In = balance1.compareTo(reserve1.subtract(amount1Out)) > 0 ? balance1.subtract((reserve1.subtract(amount1Out))) : BigInteger.ZERO;
 
         require(amount0In.compareTo(BigInteger.ZERO) > 0 || amount1In.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_INPUT_AMOUNT");
-        Utils.emit(new DebugEvent("test3", "1.4"));
+
         BigInteger balance0Adjusted = balance0.multiply(ONE_THOUSAND).subtract(amount0In.multiply(THREE));
         BigInteger balance1Adjusted = balance1.multiply(ONE_THOUSAND).subtract(amount1In.multiply(THREE));
 
-        Utils.emit(new DebugEvent("test3", "1.5"));
+
         require((balance0Adjusted.multiply(balance1Adjusted)).compareTo(reserve0.multiply(reserve1).multiply(ONE_THOUSAND.pow(2))) >= 0, "NulswapV3: K");
-        Utils.emit(new DebugEvent("test3", "1.6"));
+
         _update(balance0, balance1, reserve0, reserve1);
-        Utils.emit(new DebugEvent("test3", "1.7"));
         //emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
 
         unlock();
