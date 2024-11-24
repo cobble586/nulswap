@@ -314,7 +314,7 @@ public class NulswapRouter extends Ownable implements Contract{
 
         String addLiqRes = _addLiquidity(
                 token,
-                _wAssets.get(chainId).get(assetId),
+                getMUltiwAsset(chainId, assetId),
                 amountTokenDesired,
                 val,
                 amountTokenMin,
@@ -376,7 +376,7 @@ public class NulswapRouter extends Ownable implements Contract{
 
         String addLiqRes = _addLiquidity(
                 WNULS,
-                _wAssets.get(chainId).get(assetId),
+                getMUltiwAsset(chainId, assetId),
                 Msg.value(),
                 val,
                 amountWnulsMin,
@@ -446,8 +446,8 @@ public class NulswapRouter extends Ownable implements Contract{
         require(chainId2 == chain2 && assetId2 == asset2, "NulswapV3: Amount deposited does not match");
 
         String addLiqRes = _addLiquidity(
-                _wAssets.get(chainId).get(assetId),
-                _wAssets.get(chainId2).get(assetId2),
+                getMUltiwAsset(chainId, assetId),
+                getMUltiwAsset(chainId2, assetId2),
                 val,
                 val2,
                 amountTokenMin,
