@@ -28,18 +28,18 @@ import static io.nuls.contract.sdk.Utils.require;
 public class NulswapRouter extends Ownable implements Contract{
 
     /** Constants **/
-    private static final BigInteger BASIS_POINTS        = BigInteger.valueOf(10000);    // Math Helper for percentages
-    private static final BigInteger MIN_TRANSFERABLE    = BigInteger.valueOf(1000000);  // Minimum Transferable Amount
+    private static final BigInteger BASIS_POINTS        = BigInteger.valueOf(10000);                            // Math Helper for percentages
+    private static final BigInteger MIN_TRANSFERABLE    = BigInteger.valueOf(1000000);                          // Minimum Transferable Amount
     private static       Address    BURNER_ADDR         = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burn Address
 
     /** Variables **/
     private Address factory;                                                            // Factory
     private Address WNULS;                                                              // WNULS
-    private Address treasury;    // Treasury
+    private Address treasury;                                                           // Treasury
 
     private BigInteger platformFee;                                                     // Platform fee (in basis points)
     private BigInteger refFee;                                                          // Referral fee (in basis points)
-    private Boolean paused;
+    private Boolean paused;                                                             // Pause Status
 
     private Map<Address, Boolean> blacklist;                                            // Blacklisted Users
     private Map<Integer, Map<Integer, Address>> _wAssets;                               // Store MultiAssets Wrapped Tokens
@@ -51,15 +51,17 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param _WNULS   WNULS Address
      */
     public NulswapRouter(Address _factory, Address _WNULS){
+
         require(_factory != null && _WNULS != null, "Invalid factory and wnuls");
+
         factory     = _factory;
         WNULS       = _WNULS;
         _wAssets    = new HashMap<Integer, Map<Integer, Address>>();
         blacklist   = new HashMap<Address, Boolean>();
         platformFee = BigInteger.valueOf(100);          // 1% platform fee
         refFee      = BigInteger.valueOf(50);           // 0.5% referral fee
-        paused = false;
-        treasury = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");
+        paused      = false;
+        treasury    = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");
     }
 
     /**
@@ -68,7 +70,7 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param deadline The timestamp when the tx is not valid anymore
      */
     protected void ensure(BigInteger deadline) {
-        require(deadline.compareTo(BigInteger.valueOf(Block.timestamp())) >= 0, "UniswapV2Router: EXPIRED");
+        require(deadline.compareTo(BigInteger.valueOf(Block.timestamp())) >= 0, "NulswapV3: Expired order");
     }
 
     /**
@@ -92,30 +94,29 @@ public class NulswapRouter extends Ownable implements Contract{
     @Payable
     @Override
     public void _payable() {
-        require(Msg.sender().equals(WNULS), "NulswapRouter: Only WNULS can call payable"); // only accept NULS via fallback from the WETH contract
+        require(Msg.sender().equals(WNULS), "NulswapV3: Only WNULS can call payable"); // only accept NULS via fallback from the WETH contract
     }
 
     /**
      * Fallback function in case someone transfer nuls to the contract
      */
-    @PayableMultiAsset
+    @PayableMultyAsset
     @Override
-    public void _payableMultiAsset() {
+    public void _payableMultyAsset() {
 
         //Only send one MultiAsset
         require(Msg.multyAssetValues().length == 1, "NulswapV3: Send the MultiAsset required or don't send more than one");
 
         //Retrieve MultiAsset and get the only one sent
-        MultyAssetValue[] arAssets = Msg.multyAssetValues();
-        MultyAssetValue mToken1 = arAssets[0];
+        MultyAssetValue[] arAssets  = Msg.multyAssetValues();
+        MultyAssetValue mToken1     = arAssets[0];
 
         //Get the value, chain id and asset id of the Multiasset sent
         BigInteger v = mToken1.getValue();
         int c = mToken1.getAssetChainId();
         int a = mToken1.getAssetId();
 
-        require(c == assetChainId && a == assetId, "wAsset: Invalid asset");
-        require(Msg.sender().equals(_wAssets.get(c).get(a)), "NulswapRouter: Only WAsset can call payable"); // only accept NULS via fallback from the WETH contract
+        require(Msg.sender().equals(_wAssets.get(c).get(a)), "NulswapV3: Only WAsset can call payable"); // only accept NULS via fallback from the WETH contract
 
     }
 
@@ -144,11 +145,13 @@ public class NulswapRouter extends Ownable implements Contract{
             _createPair(tokenA, tokenB);
         }
 
+        // Get current pair reserves
         String resValues    = getReserves(tokenA, tokenB);
         String[] arrOfStr   = resValues.split(",", 2);
         BigInteger reserveA = new BigInteger(arrOfStr[0]);
         BigInteger reserveB = new BigInteger(arrOfStr[1]);
 
+        //
         BigInteger amountA, amountB;
         if (reserveA.compareTo(BigInteger.ZERO) == 0 && reserveB.compareTo(BigInteger.ZERO) == 0) {
 
@@ -160,13 +163,13 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amountBOptimal = quote(amountADesired, reserveA, reserveB);
 
             if (amountBOptimal.compareTo(amountBDesired) <= 0) {
-                require(amountBOptimal.compareTo(amountBMin) >= 0, "NulswapV2Router: INSUFFICIENT_B_AMOUNT");
+                require(amountBOptimal.compareTo(amountBMin) >= 0, "NulswapV3: INSUFFICIENT_B_AMOUNT");
                 amountA = amountADesired;
                 amountB = amountBOptimal;
             } else {
                 BigInteger amountAOptimal = quote(amountBDesired, reserveB, reserveA);
                 require(amountAOptimal.compareTo(amountADesired) <= 0, "AmountAoptimal error");
-                require(amountAOptimal.compareTo(amountAMin) >= 0, "NulswapV2Router: INSUFFICIENT_A_AMOUNT");
+                require(amountAOptimal.compareTo(amountAMin)     >= 0, "NulswapV3: INSUFFICIENT_A_AMOUNT");
                 amountA = amountAOptimal;
                 amountB = amountBDesired;
             }
@@ -239,6 +242,7 @@ public class NulswapRouter extends Ownable implements Contract{
         blacklist();
         whenNotPaused();
 
+        // Add Liquidity Logic
         String addLiqRes = _addLiquidity(
                 token,
                 WNULS,
@@ -252,17 +256,20 @@ public class NulswapRouter extends Ownable implements Contract{
         BigInteger amountToken  = new BigInteger(arrOfStr[0]);
         BigInteger amountETH    = new BigInteger(arrOfStr[1]);
 
+        // Get Pair
         Address pair = safeGetPair(token, WNULS);
+
+        // Transfer essential assets to give liquidity
         safeTransferFrom(token, Msg.sender(), pair, amountToken);
-
         depositNuls(amountETH);
-
         safeTransfer(WNULS, pair, amountETH);
 
+        // Mint liquidity to address
         BigInteger liquidity =  safeMint(pair, to); // IUniswapV2Pair(pair).mint(to);
 
+        // If amount left from adding liquidity is enough refund amount
         if (Msg.value().compareTo(amountETH.add(MIN_TRANSFERABLE)) > 0)
-            safeTransferETH(Msg.sender(), Msg.value().subtract(amountETH)); // refund dust eth, if any
+            safeTransferETH(Msg.sender(), Msg.value().subtract(amountETH)); // refund dust nuls, if any
 
         return amountToken + "," + amountETH + "," + liquidity;
     }
@@ -303,7 +310,7 @@ public class NulswapRouter extends Ownable implements Contract{
         int chain = mToken1.getAssetChainId();
         BigInteger val = mToken1.getValue();
 
-        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+        require(chainId == chain && assetId == asset, "NulswapV3: Assets deposited does not match");
 
         String addLiqRes = _addLiquidity(
                 token,
@@ -319,10 +326,9 @@ public class NulswapRouter extends Ownable implements Contract{
         BigInteger amountETH    = new BigInteger(arrOfStr[1]);
 
         Address pair = safeGetPair(token, _wAssets.get(chainId).get(assetId));
+
         safeTransferFrom(token, Msg.sender(), pair, amountToken);
-
         depositMultiAsset(amountETH, chainId, assetId, 0);
-
         safeTransfer(_wAssets.get(chainId).get(assetId), pair, amountETH);
 
         BigInteger liquidity =  safeMint(pair, to); // IUniswapV2Pair(pair).mint(to);
@@ -366,7 +372,7 @@ public class NulswapRouter extends Ownable implements Contract{
         int chain = mToken1.getAssetChainId();
         BigInteger val = mToken1.getValue();
 
-        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
+        require(chainId == chain && assetId == asset, "NulswapV3: Assets deposited does not match");
 
         String addLiqRes = _addLiquidity(
                 WNULS,
@@ -379,13 +385,12 @@ public class NulswapRouter extends Ownable implements Contract{
 
         String[] arrOfStr       = addLiqRes.split(",", 2);
         BigInteger amountToken  = new BigInteger(arrOfStr[0]);
-        BigInteger amountWasset   = new BigInteger(arrOfStr[1]);
+        BigInteger amountWasset = new BigInteger(arrOfStr[1]);
 
         Address pair = safeGetPair(WNULS, _wAssets.get(chainId).get(assetId));
 
         depositNuls(Msg.value());
         depositMultiAsset(amountWasset, chainId, assetId, 0);
-
         safeTransfer(WNULS, pair, amountToken);
         safeTransfer(_wAssets.get(chainId).get(assetId), pair, amountWasset);
 
@@ -437,8 +442,8 @@ public class NulswapRouter extends Ownable implements Contract{
         int chain2 = mToken2.getAssetChainId();
         BigInteger val2 = mToken2.getValue();
 
-        require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
-        require(chainId2 == chain2 && assetId2 == asset2, "NulswapV1: Amount deposited does not match");
+        require(chainId == chain && assetId == asset, "NulswapV3: Amount deposited does not match");
+        require(chainId2 == chain2 && assetId2 == asset2, "NulswapV3: Amount deposited does not match");
 
         String addLiqRes = _addLiquidity(
                 _wAssets.get(chainId).get(assetId),
@@ -772,7 +777,7 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /** **** SWAP (supporting fee-on-transfer tokens) ****
-    // requires the initial amount to have already been sent to the first pair
+    / requires the initial amount to have already been sent to the first pair
      */
     private void _swapSupportingFeeOnTransferTokens(String[]  path, Address _to){
 
@@ -837,7 +842,7 @@ public class NulswapRouter extends Ownable implements Contract{
         _swapSupportingFeeOnTransferTokens(path, to);
         require(
                 (safeBalanceOf(new Address(path[path.length - 1]), to).subtract(balanceBefore)).compareTo(amountOutMin) >= 0,
-                "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+                "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
 
@@ -854,7 +859,7 @@ public class NulswapRouter extends Ownable implements Contract{
         blacklist();
         whenNotPaused();
 
-        require(new Address(path[0]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[0]).equals(WNULS), "NulswapV3: INVALID_PATH");
 
         BigInteger amountIn = Msg.value();
         depositNuls(amountIn);
@@ -1065,12 +1070,14 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     * Swap tokens for an exact amount of Nuls
      *
-     * @param amountOut
-     * @param amountInMax
+     * @param amountOut Output Amount
+     * @param amountInMax Maximum input amount desired
      * @param path
-     * @param to
-     * @param deadline
+     * @param to Receiver Address
+     * @param deadline  Deadline date
+     * @param ref Referral Address
      * */
     @JSONSerializable
     public String[] swapTokensForExactNuls(
@@ -1079,8 +1086,8 @@ public class NulswapRouter extends Ownable implements Contract{
             String[] path,
             Address to,
             BigInteger deadline,
-            Address ref)
-    {
+            Address ref
+    ){
         ensure(deadline);
         blacklist();
         whenNotPaused();
@@ -1693,10 +1700,10 @@ public class NulswapRouter extends Ownable implements Contract{
 
         require(chainId == chain && assetId == asset, "NulswapV3: Amount deposited does not match");
 
-        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
+        require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV3: INVALID_PATH");
         String[] amounts = getAmountsOut(val, path);
 
-        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
         depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
 
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
@@ -1710,9 +1717,10 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     *  Return the token0 and the token1 from a pair of tokens
      *
-     * @param tokenA
-     * @param tokenB
+     * @param tokenA TokenA Contract Address
+     * @param tokenB TokenB Contract Address
      * */
     // returns sorted token addresses, used to handle return values from pairs sorted in this order
     private String sortTokens(Address tokenA, Address tokenB){
@@ -1733,6 +1741,8 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     * Return pair reserves
+     *
      * @param tokenA
      * @param tokenB
      * */
@@ -1762,6 +1772,7 @@ public class NulswapRouter extends Ownable implements Contract{
 
 
     /**
+     * Quote the return output amount given amountA and reserves
      *
      * @param amountA
      * @param reserveA
@@ -1773,13 +1784,14 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger reserveA,
             BigInteger reserveB
     ){
-        require(amountA.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_AMOUNT");
-        require(reserveA.compareTo(BigInteger.ZERO) > 0 && reserveB.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        require(amountA.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_AMOUNT");
+        require(reserveA.compareTo(BigInteger.ZERO) > 0 && reserveB.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_LIQUIDITY");
         BigInteger amountB = amountA.multiply(reserveB).divide(reserveA);
         return amountB;
     }
 
     /**
+     *  Return the output amount
      *
      * @param amountIn
      * @param reserveIn
@@ -1792,8 +1804,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger reserveOut
     ){
 
-        require(amountIn.compareTo(BigInteger.ZERO) > 0,"UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
-        require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        require(amountIn.compareTo(BigInteger.ZERO) > 0,"NulswapV3: INSUFFICIENT_INPUT_AMOUNT");
+        require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "NulswapV3: INSUFFICIENT_LIQUIDITY");
 
         BigInteger amountInWithFee = amountIn.multiply(BigInteger.valueOf(997));
         BigInteger numerator = amountInWithFee.multiply(reserveOut);
@@ -1804,6 +1816,7 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     /**
+     *
      *
      * @param amountOut
      * @param reserveIn
@@ -1816,8 +1829,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger reserveOut
     ){
 
-        require(amountOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
-        require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        require(amountOut.compareTo(BigInteger.ZERO) > 0, "NulswapRouterV3: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(reserveIn.compareTo(BigInteger.ZERO) > 0 && reserveOut.compareTo(BigInteger.ZERO) > 0, "NulswapRouterV3: INSUFFICIENT_LIQUIDITY");
 
         BigInteger numerator = reserveIn.multiply(amountOut).multiply(BigInteger.valueOf(1000));
         BigInteger denominator = (reserveOut.subtract(amountOut)).multiply(BigInteger.valueOf(997));
@@ -1838,8 +1851,6 @@ public class NulswapRouter extends Ownable implements Contract{
         require(path.length >= 2, "NulswapV3: INVALID_PATH");
         String[] amounts = new String[path.length];
         amounts[0]       = amountIn.toString();
-
-        Utils.emit(new DebugEvent("test2", "2.1"));
 
         for (int i = 0; i < path.length - 1; i++) {
 
@@ -1907,7 +1918,6 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amount1Out,
             @Required Address to
     ){
-        Utils.emit(new DebugEvent("test2", "4.3.3"));
         String[][] argsM = new String[][]{new String[]{amount0Out.toString()}, new String[]{amount1Out.toString()}, new String[]{to.toString()}};
         pair.callWithReturnValue("swap", "", argsM, BigInteger.ZERO);
     }
@@ -2061,7 +2071,11 @@ public class NulswapRouter extends Ownable implements Contract{
 
     }
 
-    //Deposit nuls and get wnuls in return
+    /**
+     * Deposit nuls and get wnuls in return
+     *
+     *
+     * */
     private void depositNuls(@Required BigInteger v) {
 
         //Require that the amount sent is equal to the amount requested - Do not remove this verification
@@ -2127,7 +2141,6 @@ public class NulswapRouter extends Ownable implements Contract{
         MultyAssetValue[] vii = new MultyAssetValue[1];
         vii[0] = vi;
         //Utils.emit(new DebugEvent("clinitTest log5", assetId + ", "+ chain + ", "+ v + ", "+ value));
-
 
         String[][] args = new String[][]{new String[]{v.toString()}};
         String rDeposit = routerAsset.callWithReturnValue("deposit", "", args, BigInteger.ZERO, vii);
