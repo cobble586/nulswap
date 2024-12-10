@@ -250,7 +250,8 @@ public class NulswapPair implements Contract{
         _update(balance0, balance1, reserve0, reserve1);
 
         if (feeOn) kLast = reserve0.multiply(reserve1); // reserve0 and reserve1 are up-to-date
-        //emit Mint(msg.sender, amount0, amount1);
+
+        emit(new MintEvent(Msg.sender(), amount0, amount1));
 
         unlock();
 
@@ -558,6 +559,71 @@ public class NulswapPair implements Contract{
                     ", amount0Out=" + amount0Out +
                     ", amount1Out=" + amount1Out +
                     ", to=" + to +
+                    '}';
+        }
+
+    }
+
+    class MintEvent implements Event {
+
+        private Address sender;
+
+        private BigInteger amount0;
+        private BigInteger amount1;
+
+
+        public MintEvent(@Required Address sender, @Required BigInteger amount0, @Required BigInteger amount1) {
+            this.sender = sender;
+            this.amount0 = amount0;
+            this.amount1 = amount1;
+        }
+
+        public Address getSender() {
+            return sender;
+        }
+
+        public void setSender(Address sender) {
+            this.sender = sender;
+        }
+
+        public BigInteger getAmount0() {
+            return amount0;
+        }
+
+        public void setAmount0(BigInteger amount0) {
+            this.amount0 = amount0;
+        }
+
+        public BigInteger getAmount1() {
+            return amount1;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            MintEvent that = (MintEvent) o;
+
+            if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
+            if (amount0 != null ? !amount0.equals(that.amount0) : that.amount0 != null) return false;
+            return amount1 != null ? amount1.equals(that.amount1) : that.amount1 == null;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = sender != null ? sender.hashCode() : 0;
+            result = 31 * result + (amount0 != null ? amount0.hashCode() : 0);
+            result = 31 * result + (amount1 != null ? amount1.hashCode() : 0);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Mint{" +
+                    "spender=" + sender +
+                    ", amount0=" + amount0 +
+                    ", amount1=" + amount1 +
                     '}';
         }
 
