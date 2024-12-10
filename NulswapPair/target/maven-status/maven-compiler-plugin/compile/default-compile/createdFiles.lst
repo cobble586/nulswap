@@ -1,4 +1,6 @@
 NulswapPair$MintEvent.class
 NulswapPair$SwapEvent.class
 NulswapPair.class
+NulswapPair$BurnEvent.class
+NulswapPair$SyncEvent.class
 Ownable.class
