@@ -77,7 +77,7 @@ public class NulswapFactory extends Ownable implements Contract{
         getPair.put(token1, tkn1tkn0);
 
         allPairs.add(pair);
-        //emit PairCreated(token0, token1, pair, allPairs.length);
+        emit(new PairCreatedEvent(token0, token1, pair, allPairs.size()));
         return pair;
     }
 
@@ -114,6 +114,84 @@ public class NulswapFactory extends Ownable implements Contract{
     @View
     public int allPairsLength(){
         return allPairs.size();
+    }
+
+    class PairCreatedEvent implements Event {
+
+        private Address token0;
+        private Address token1;
+        private Address pair;
+        private Integer numberOfPairs;
+
+
+        public PairCreatedEvent(@Required Address token0, @Required Address token1, @Required Address pair,  @Required Integer numberOfPairs) {
+            this.token0 = token0;
+            this.token1 = token1;
+            this.pair = pair;
+            this.numberOfPairs = numberOfPairs;
+        }
+
+        public Address getToken0() {
+            return token0;
+        }
+
+        public void setToken0(Address token0){
+            this.token0 = token0;
+        }
+
+        public Address getToken1() {
+            return token1;
+        }
+        public void setToken1(Address token1){
+            this.token1 = token1;
+        }
+
+        public Address getPair() {
+            return pair;
+        }
+        public void setPair(Address pair){
+            this.pair = pair;
+        }
+        public Integer getNumberOfPairs() {
+            return numberOfPairs;
+        }
+
+        public void setNumberOfPairs(Integer numberOfPairs){
+            this.numberOfPairs = numberOfPairs;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            PairCreatedEvent that = (PairCreatedEvent) o;
+
+            if (token0 != null ? !token0.equals(that.token1) : that.token0 != null) return false;
+            if (token1 != null ? !token1.equals(that.token1) : that.token1 != null) return false;
+            if (pair != null ? !pair.equals(that.pair) : that.pair != null) return false;
+            return numberOfPairs != null ? numberOfPairs.equals(that.numberOfPairs) : that.numberOfPairs == null;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = token0 != null ? token0.hashCode() : 0;
+            result = 31 * result + (token1 != null ? token1.hashCode() : 0);
+            result = 31 * result + (pair != null ? pair.hashCode() : 0);
+            result = 31 * result + (numberOfPairs != null ? numberOfPairs.hashCode() : 0);
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "PairCreated{" +
+                    "token0=" + token0 +
+                    ", token1=" + token1 +
+                    ", pair=" + pair +
+                    ", numberOfPairs=" + numberOfPairs +
+                    '}';
+        }
+
     }
 
 }

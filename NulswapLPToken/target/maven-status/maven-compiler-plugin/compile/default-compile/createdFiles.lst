@@ -1,5 +1,7 @@
 Token$ApprovalEvent.class
-Ownable.class
+Ownable$OwnershipRenouncedEvent.class
 Token$TransferEvent.class
 NulswapLPToken.class
 Token.class
+Ownable$OwnershipTransferredEvent.class
+Ownable.class

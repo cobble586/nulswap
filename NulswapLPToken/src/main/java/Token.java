@@ -1,5 +1,3 @@
-
-
 import io.nuls.contract.sdk.Address;
 import io.nuls.contract.sdk.Event;
 import io.nuls.contract.sdk.annotation.Required;
