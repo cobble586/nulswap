@@ -16,38 +16,42 @@ import java.util.List;
 import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 
-
-
 /**
- * @title   Nuls Oracles Revenue Distribution Contract
+ * @title   Nuls Fcatory Contract
  *
- * @dev     Allows for users to deposit Nuls Oracle Tokens (ORA)
- *          and earn revenue from the Nuls Oracles Project.
- *          After deposited users will no longer be able to
- *          withdraw the tokens, meanign that by depositing
- *          they are burning their tokens.
+ * @notice  Issues a new pair and stores it
  *
  * @author  Pedro G. S. Ferreira
  *
  */
 public class NulswapFactory extends Ownable implements Contract{
 
-    private Address feeTo;
-    private Address feeToSetter;
-    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
+    private Address feeTo;                                                                                  //
+    private Address feeToSetter;                                                                            //
+    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");              // Burner Address Contract
 
-    private Map<Address, Map<Address, Address>> getPair = new HashMap<Address, Map<Address, Address>>();
+    private Map<Address, Map<Address, Address>> getPair = new HashMap<Address, Map<Address, Address>>();    // Token Pair Mapping
 
-    private List<Address> allPairs = new ArrayList<Address>();
+    private List<Address> allPairs = new ArrayList<Address>();                                              // All Pairs List
 
+    // Constructor
     public NulswapFactory(Address _feeToSetter){
         feeToSetter = _feeToSetter;
         feeTo       = _feeToSetter;
     }
 
+    /**
+     * Creates a new pair and stores it
+     *
+     * @param tokenA Token A Contract Address
+     * @param tokenB Token B Contract Address
+     * */
     public Address createPair(Address tokenA, Address tokenB){
+
+        // TokenA cannot be equal to TokenB
         require(!tokenA.equals(tokenB), "NulswapV3: IDENTICAL_ADDRESSES");
 
+        // Find the correct order of the tokens
         Address token0, token1;
         if(tokenA.hashCode() < tokenB.hashCode()){
             token0 = tokenA;
@@ -57,11 +61,13 @@ public class NulswapFactory extends Ownable implements Contract{
             token1 = tokenA;
         }
 
+        // Token0 cannot be null
         require(token0 != null, "NulswapV3: ZERO_ADDRESS");
 
         Map<Address, Address> ownerAllowed = getPair.get(token0);
 
         require(getPair.get(token0) == null || getPair.get(token0).get(token1) == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
+
 
         String pairAddr =  Utils.deploy(new String[]{ "pair", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6Hgw916TK3TdH7i6ashb317VQkjxAiZD"), new String[]{});
         Address pair = new Address(pairAddr);
@@ -75,8 +81,9 @@ public class NulswapFactory extends Ownable implements Contract{
         tkn1tkn0.put(token0, pair);
         getPair.put(token0, tkn0tkn1);
         getPair.put(token1, tkn1tkn0);
-
         allPairs.add(pair);
+
+        //
         emit(new PairCreatedEvent(token0, token1, pair, allPairs.size()));
         return pair;
     }
@@ -97,11 +104,21 @@ public class NulswapFactory extends Ownable implements Contract{
         feeToSetter = _feeToSetter;
     }
 
+    /**
+     *
+     *
+     * */
     @View
     public Address getFeeTo(){
         return feeTo;
     }
 
+    /**
+     * Get Pair Contract
+     *
+     * @param token0 First Token Contract Address
+     * @param token1 Second Token Contract Address
+     * */
     @View
     public Address getPair(Address token0,Address token1){
         if(getPair.get(token0) != null) {

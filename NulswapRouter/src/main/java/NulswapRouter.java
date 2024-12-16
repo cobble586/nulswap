@@ -555,6 +555,7 @@ public class NulswapRouter extends Ownable implements Contract{
         BigInteger amountETH    = new BigInteger(arrOfStr[1]);
 
         safeTransfer(token, to, amountToken);
+        require(amountETH.compareTo(MIN_TRANSFERABLE) >= 0, "Min nuls transfer not met");
         withdrawNuls(amountETH);
 
         safeTransferETH(to, amountETH);
@@ -575,7 +576,6 @@ public class NulswapRouter extends Ownable implements Contract{
     public String removeLiquidityNulsWAsset(
             Integer chainId,
             Integer assetId,
-            Address token,
             BigInteger liquidity,
             BigInteger amountTokenMin,
             BigInteger amountETHMin,
@@ -669,7 +669,6 @@ public class NulswapRouter extends Ownable implements Contract{
             Integer assetId,
             Integer chainId2,
             Integer assetId2,
-            Address token,
             BigInteger liquidity,
             BigInteger amountTokenMin,
             BigInteger amountETHMin,
@@ -681,8 +680,8 @@ public class NulswapRouter extends Ownable implements Contract{
         whenNotPaused();
 
         String resVal = removeLiquidity(
-                token,
                 _wAssets.get(chainId).get(assetId),
+                _wAssets.get(chainId2).get(assetId2),
                 liquidity,
                 amountTokenMin,
                 amountETHMin,
