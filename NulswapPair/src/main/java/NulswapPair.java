@@ -33,6 +33,8 @@ public class NulswapPair implements Contract{
     private static BigInteger MINIMUM_LIQUIDITY = BigInteger.valueOf(1_000);                            // Minimum Liquidity
     private static Address BURNER_ADDR          = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burner Address
     private static BigInteger Q112              = BigInteger.valueOf(2).pow(112);                       // 2^112
+    private static BigInteger Q112_1             = Q112.subtract(BigInteger.ONE);                       // 2^112 - 1
+    private static BigInteger Q32              = BigInteger.valueOf(2).pow(32);                       // 2^32
 
     private static BigInteger THREE          = BigInteger.valueOf(3);                          // Three
     private static BigInteger TWO            = BigInteger.valueOf(2);                          // Two
@@ -135,9 +137,9 @@ public class NulswapPair implements Contract{
      * */
     private void _update(BigInteger balance0, BigInteger balance1, BigInteger _reserve0, BigInteger _reserve1){
 
-        require(balance0.compareTo(Q112.subtract(BigInteger.ONE)) <= 0 && balance1.compareTo(Q112.subtract(BigInteger.ONE)) <= 0, "NulswapV3: OVERFLOW");
+        require(balance0.compareTo(Q112_1) <= 0 && balance1.compareTo(Q112_1) <= 0, "NulswapV3: OVERFLOW");
 
-        BigInteger blockTimestamp   = BigInteger.valueOf(Block.timestamp()).remainder(TWO.pow(32));
+        BigInteger blockTimestamp   = BigInteger.valueOf(Block.timestamp()).remainder(Q32);
         BigInteger timeElapsed      = blockTimestamp.subtract(blockTimestampLast);
 
         if (timeElapsed.compareTo(BigInteger.ZERO) > 0 && _reserve0.compareTo(BigInteger.ZERO) != 0 && _reserve1.compareTo(BigInteger.ZERO) != 0) {
@@ -237,7 +239,7 @@ public class NulswapPair implements Contract{
         BigInteger _totalSupply = safeTotalSupply(lp); // Must be defined here since totalSupply can update in _mintFee
 
         BigInteger liquidity;
-        if (_totalSupply.compareTo(BigInteger.ONE) == 0) {
+        if (_totalSupply.compareTo(BigInteger.ZERO) == 0) {
             liquidity = sqrt(amount0.multiply(amount1)).subtract(MINIMUM_LIQUIDITY);
             _mint(BURNER_ADDR, MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
@@ -301,7 +303,7 @@ public class NulswapPair implements Contract{
 
         BigInteger balance0, balance1;
 
-        require(to != token0 && to != token1, "NulswapV3: INVALID_TO");
+        require(!to.equals(token0) && !to.equals(token1), "NulswapV3: INVALID_TO");
 
         if (amount0Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token0, to, amount0Out); // optimistically transfer tokens
         if (amount1Out.compareTo(BigInteger.ZERO) > 0) safeTransfer(token1, to, amount1Out); // optimistically transfer tokens
