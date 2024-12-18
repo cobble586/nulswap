@@ -726,6 +726,25 @@ public class NulswapRouter extends Ownable implements Contract{
         return amountIn;
     }
 
+    private BigInteger takeFeeInternal(BigInteger amountIn, Address payingToken, Address ref){
+
+        BigInteger fee = amountIn.multiply(platformFee).divide(BASIS_POINTS);
+
+        BigInteger referralFee = BigInteger.ZERO;
+        if(!ref.equals(BURNER_ADDR)){
+            referralFee = amountIn.multiply(refFee).divide(BASIS_POINTS);
+            if(referralFee.compareTo(BigInteger.ZERO) > 0){
+                safeTransfer(payingToken,  ref, referralFee);
+            }
+        }
+
+        safeTransfer(payingToken, treasury, fee.subtract(referralFee));
+
+        amountIn = amountIn.subtract(fee);
+
+        return amountIn;
+    }
+
     private BigInteger takeFeeOutput(BigInteger amountIn, Address payingToken, Address ref){
 
         BigInteger fee = amountIn.multiply(platformFee).divide(BASIS_POINTS);
@@ -819,6 +838,11 @@ public class NulswapRouter extends Ownable implements Contract{
         }
     }
 
+    /**
+     *
+     *
+     *
+     * */
     public void swapExactTokensForTokensSupportingFeeOnTransferTokens(
             BigInteger amountIn,
             BigInteger amountOutMin,
@@ -845,7 +869,7 @@ public class NulswapRouter extends Ownable implements Contract{
     }
 
     @Payable
-    public void  swapExactETHForTokensSupportingFeeOnTransferTokens(
+    public void  swapExactNulsForTokensSupportingFeeOnTransferTokens(
             BigInteger amountOutMin,
             String[] path,
             Address to,
@@ -860,19 +884,21 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new Address(path[0]).equals(WNULS), "NulswapV3: INVALID_PATH");
 
         BigInteger amountIn = Msg.value();
+
         depositNuls(amountIn);
 
+        amountIn = takeFeeInternal(amountIn, WNULS, ref);
 
         safeTransfer(WNULS, safeGetPair(new Address(path[0]), new Address(path[1])), amountIn);
         BigInteger balanceBefore = safeBalanceOf(new Address(path[path.length - 1]), to);//IERC20(path[path.length - 1]).balanceOf(to);
         _swapSupportingFeeOnTransferTokens(path, to);
         require(
                 safeBalanceOf(new Address(path[path.length - 1]), to).subtract(balanceBefore).compareTo(amountOutMin) >= 0,
-                "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+                "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
 
-    public void swapExactTokensForETHSupportingFeeOnTransferTokens(
+    public void swapExactTokensForNulsSupportingFeeOnTransferTokens(
            BigInteger amountIn,
             BigInteger amountOutMin,
             String[]  path,
@@ -886,9 +912,13 @@ public class NulswapRouter extends Ownable implements Contract{
         whenNotPaused();
 
         require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
+
+        amountIn = takeFee(amountIn, new Address(path[0]), ref);
         safeTransferFrom(
                 new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), amountIn
         );
+
+
 
         _swapSupportingFeeOnTransferTokens(path, Msg.address());
         BigInteger amountOut = safeBalanceOf(WNULS, Msg.address());// IERC20(WETH).balanceOf(address(this));
@@ -928,6 +958,8 @@ public class NulswapRouter extends Ownable implements Contract{
         BigInteger amountIn = val;
         depositMultiAsset(amountIn, chainId, assetId, 0);
 
+        amountIn = takeFeeInternal(amountIn,_wAssets.get(chainId).get(assetId), ref);
+
         safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair(new Address(path[0]), new Address(path[1])), amountIn);
         BigInteger balanceBefore = safeBalanceOf(new Address(path[path.length - 1]), to);//IERC20(path[path.length - 1]).balanceOf(to);
         _swapSupportingFeeOnTransferTokens(path, to);
@@ -953,14 +985,18 @@ public class NulswapRouter extends Ownable implements Contract{
         whenNotPaused();
 
         require(new Address(path[path.length - 1]).equals(_wAssets.get(chainId).get(assetId)), "UniswapV2Router: INVALID_PATH");
+
+        amountIn = takeFee(amountIn, new Address(path[0]), ref);
         safeTransferFrom(
                 new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), amountIn
         );
 
+
+
         _swapSupportingFeeOnTransferTokens(path, Msg.address());
         BigInteger amountOut = safeBalanceOf(_wAssets.get(chainId).get(assetId), Msg.address());// IERC20(WETH).balanceOf(address(this));
 
-        require(amountOut.compareTo(amountOutMin) >= 0, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(amountOut.compareTo(amountOutMin) >= 0, "NulswapV3: INSUFFICIENT_OUTPUT_AMOUNT");
         withdrawWAsset(_wAssets.get(chainId).get(assetId), amountOut);
         safeTransferWAsset(to, amountOut, chainId, assetId);
     }
@@ -1054,14 +1090,14 @@ public class NulswapRouter extends Ownable implements Contract{
 
         require(new Address(path[0]).equals(WNULS), "NulswapV2Router: INVALID_PATH");
 
-        BigInteger realVal = takeFee(Msg.value(), new Address(path[0]), ref);
+        depositNuls(Msg.value()); //IWETH(WETH).deposit{value: amounts[0]}();
+        BigInteger realVal = takeFeeInternal(Msg.value(), new Address(path[0]), ref);
 
         String[] amounts = getAmountsOut(realVal, path);
 
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        depositNuls(new BigInteger(amounts[0])); //IWETH(WETH).deposit{value: amounts[0]}();
 
-        require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+        require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), realVal), "Transfer failed");
         _swap(amounts, path, to);
 
         return amounts;
@@ -1090,11 +1126,11 @@ public class NulswapRouter extends Ownable implements Contract{
         blacklist();
         whenNotPaused();
 
-        require(new Address(path[path.length - 1]).equals(WNULS), "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[path.length - 1]).equals(WNULS), "NulswapV3: INVALID_PATH");
         String[] amounts = getAmountsIn(amountOut, path);
         BigInteger fee = takeFeeOutput(new BigInteger(amounts[0]), new Address(path[0]), ref);
 
-        require((new BigInteger(amounts[0]).add(fee)).compareTo(amountInMax) <= 0, "UniswapV2Router: EXCESSIVE_INPUT_AMOUNT");
+        require((new BigInteger(amounts[0]).add(fee)).compareTo(amountInMax) <= 0, "NulswapV3: EXCESSIVE_INPUT_AMOUNT");
         safeTransferFrom(new Address(path[0]), Msg.sender(), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0]));
         _swap(amounts, path, Msg.address());
         withdrawNuls(new BigInteger(amounts[amounts.length - 1]));
@@ -1310,7 +1346,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amountOut,
             String[] path,
             Address to,
-            BigInteger deadline
+            BigInteger deadline,
+            Address ref
     ){
         ensure(deadline);
         blacklist();
@@ -1333,6 +1370,9 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
 
         depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+
+        amounts[0] = takeFeeInternal(new BigInteger(amounts[0]), _wAssets.get(chainId).get(assetId), ref).toString();
+
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, to);
 
@@ -1356,7 +1396,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amountOutMin,
             String[] path,
             Address to,
-            BigInteger deadline
+            BigInteger deadline,
+            Address ref
     ){
         ensure(deadline);
         blacklist();
@@ -1369,7 +1410,10 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         depositNuls(new BigInteger(amounts[0])); //IWETH(WETH).deposit{value: amounts[0]}();
 
+        amounts[0] = takeFeeInternal(new BigInteger(amounts[0]) ,WNULS, ref).toString();
+
         require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+
         _swap(amounts, path, Msg.address());
 
         withdrawWAsset(getMUltiwAsset(chainId, assetId), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
@@ -1396,7 +1440,9 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amountInMax,
             String[] path,
             Address to,
-            BigInteger deadline)
+            BigInteger deadline,
+            Address ref
+            )
     {
         ensure(deadline);
         blacklist();
@@ -1420,6 +1466,8 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
 
         depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+
+        amounts[0] = takeFeeInternal(new BigInteger(amounts[0]), _wAssets.get(chainId).get(assetId), ref).toString();
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, Msg.address());
         withdrawNuls(new BigInteger(amounts[amounts.length - 1]));
@@ -1444,7 +1492,8 @@ public class NulswapRouter extends Ownable implements Contract{
             BigInteger amountOutMin,
             String[] path,
             Address to,
-            BigInteger deadline
+            BigInteger deadline,
+            Address ref
     ){
         ensure(deadline);
         blacklist();
@@ -1467,6 +1516,8 @@ public class NulswapRouter extends Ownable implements Contract{
 
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
+
+        amounts[0] = takeFeeInternal(new BigInteger( amounts[0]), _wAssets.get(chainId).get(assetId), ref).toString();
 
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
         _swap(amounts, path, Msg.address());
@@ -1505,6 +1556,9 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new BigInteger(amounts[0]).compareTo(Msg.value()) <= 0, "NulswapV2Router: EXCESSIVE_INPUT_AMOUNT");
 
         depositNuls(new BigInteger(amounts[0]));
+
+        amounts[0] = takeFeeInternal(new BigInteger(amounts[0]), WNULS, ref).toString();
+
         require(safeTransfer(WNULS, safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, Msg.address());
 
@@ -1550,13 +1604,16 @@ public class NulswapRouter extends Ownable implements Contract{
         require(chainId == chain && assetId == asset, "NulswapV1: Amount deposited does not match");
 
         require(new Address(path[0]).equals(_wAssets.get(chainId).get(assetId)), "NulswapV2Router: INVALID_PATH");
-        require(new Address(path[path.length - 1]).equals(_wAssets.get(chainId2).get(assetId2)), "UniswapV2Router: INVALID_PATH");
+        require(new Address(path[path.length - 1]).equals(_wAssets.get(chainId2).get(assetId2)), "NulswapV2Router: INVALID_PATH");
+
+        depositMultiAsset(val, chainId , assetId, 0);
+        val = takeFeeInternal(val, _wAssets.get(chainId).get(assetId), ref);
         String[] amounts = getAmountsOut(val, path);
 
         require(new BigInteger(amounts[amounts.length - 1]).compareTo(amountOutMin) >= 0, "NulswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        depositMultiAsset(new BigInteger(amounts[0]), chainId , assetId, 0);
 
-        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Transfer failed");
+
+        require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), val), "Transfer failed");
         _swap(amounts, path, Msg.address());
 
         withdrawWAsset(getMUltiwAsset(chainId2, assetId2), new BigInteger(amounts[amounts.length - 1])); //IWETH(WETH).withdraw(amounts[amounts.length - 1]);
@@ -1610,6 +1667,9 @@ public class NulswapRouter extends Ownable implements Contract{
         require(new BigInteger(amounts[0]).compareTo(val) <= 0, "NulswapV3: EXCESSIVE_INPUT_AMOUNT");
 
         depositMultiAsset(new BigInteger(amounts[0]), chainId, assetId, 0);
+
+        amounts[0] = takeFeeInternal(new BigInteger(amounts[0]), _wAssets.get(chainId).get(assetId), ref).toString();
+
         require(safeTransfer(_wAssets.get(chainId).get(assetId), safeGetPair( new Address(path[0]), new Address(path[1])), new BigInteger(amounts[0])), "Failed Transfer");
         _swap(amounts, path, Msg.address());
 
