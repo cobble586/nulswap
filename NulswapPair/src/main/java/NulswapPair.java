@@ -667,6 +667,14 @@ public class NulswapPair implements Contract{
             return amount1;
         }
 
+        public void setTo(Address to) {
+            this.to = to;
+        }
+
+        public BigInteger getTo() {
+            return to;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -676,7 +684,8 @@ public class NulswapPair implements Contract{
 
             if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
             if (amount0 != null ? !amount0.equals(that.amount0) : that.amount0 != null) return false;
-            return amount1 != null ? amount1.equals(that.amount1) : that.amount1 == null;
+            if (amount1 != null ? !amount1.equals(that.amount0) : that.amount1 != null) return false;
+            return to != null ? to.equals(that.amount1) : that.to == null;
         }
 
         @Override
@@ -684,6 +693,7 @@ public class NulswapPair implements Contract{
             int result = sender != null ? sender.hashCode() : 0;
             result = 31 * result + (amount0 != null ? amount0.hashCode() : 0);
             result = 31 * result + (amount1 != null ? amount1.hashCode() : 0);
+            result = 31 * result + (to != null ? to.hashCode() : 0);
             return result;
         }
 
@@ -693,6 +703,7 @@ public class NulswapPair implements Contract{
                     "spender=" + sender +
                     ", amount0=" + amount0 +
                     ", amount1=" + amount1 +
+                    ", to="+ to +
                     '}';
         }
 
@@ -702,25 +713,28 @@ public class NulswapPair implements Contract{
 
         private Address sender;
 
-        private BigInteger amount0;
-        private BigInteger amount1;
+        private BigInteger reserve0;
+        private BigInteger reserve1;
 
 
-        public SyncEvent(@Required BigInteger amount0, @Required BigInteger amount1) {
-            this.amount0 = amount0;
-            this.amount1 = amount1;
+        public SyncEvent(@Required BigInteger reserve0, @Required BigInteger reserve1) {
+            this.reserve0 = reserve0;
+            this.reserve1 = reserve1;
         }
 
-        public BigInteger getAmount0() {
-            return amount0;
+        public BigInteger getReserve0() {
+            return reserve0;
+        }
+        public void setReserve0(BigInteger reserve0) {
+            this.reserve0 = reserve0;
         }
 
-        public void setAmount0(BigInteger amount0) {
-            this.amount0 = amount0;
+        public BigInteger getReserve1() {
+            return reserve1;
         }
 
-        public BigInteger getAmount1() {
-            return amount1;
+        public void setReserve1(BigInteger reserve1) {
+            this.reserve1 = reserve1;
         }
 
         @Override
@@ -730,25 +744,22 @@ public class NulswapPair implements Contract{
 
             SyncEvent that = (SyncEvent) o;
 
-            if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
-            if (amount0 != null ? !amount0.equals(that.amount0) : that.amount0 != null) return false;
-            return amount1 != null ? amount1.equals(that.amount1) : that.amount1 == null;
+            if (reserve0 != null ? !reserve1.equals(that.reserve0) : that.reserve0 != null) return false;
+            return reserve1 != null ? !reserve1.equals(that.reserve1) : that.reserve1 != null;
         }
 
         @Override
         public int hashCode() {
-            int result = sender != null ? sender.hashCode() : 0;
-            result = 31 * result + (amount0 != null ? amount0.hashCode() : 0);
-            result = 31 * result + (amount1 != null ? amount1.hashCode() : 0);
+            int result = reserve0 != null ? reserve0.hashCode() : 0;
+            result = 31 * result + (reserve1 != null ? reserve1.hashCode() : 0);
             return result;
         }
 
         @Override
         public String toString() {
             return "Sync{" +
-                    "spender=" + sender +
-                    ", amount0=" + amount0 +
-                    ", amount1=" + amount1 +
+                    "amount0="   + reserve0 +
+                    ", amount1=" + reserve1 +
                     '}';
         }
 
