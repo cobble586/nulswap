@@ -486,84 +486,6 @@ public class NulswapPair implements Contract{
             this.to = to;
         }
 
-        public Address getSender() {
-            return sender;
-        }
-
-        public void setSender(Address sender) {
-            this.sender = sender;
-        }
-
-        public BigInteger getAmount0In() {
-            return amount0In;
-        }
-
-        public void setAmount0In(BigInteger amount0In) {
-            this.amount0In = amount0In;
-        }
-
-        public BigInteger getAmount1In() {
-            return amount1In;
-        }
-
-        public void setAmount1In(BigInteger amount1In) {
-            this.amount1In = amount1In;
-        }
-
-        public BigInteger getAmount0Out() {
-            return amount0Out;
-        }
-
-        public void setAmount0Out(BigInteger amount0Out) {
-            this.amount0Out = amount0Out;
-        }
-
-        public BigInteger getAmount1Out() {
-            return amount1Out;
-        }
-
-        public void setAmount1Out(BigInteger amount1Out) {
-            this.amount1Out = amount1Out;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            SwapEvent that = (SwapEvent) o;
-
-            if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
-            if (amount0In != null ? !amount0In.equals(that.amount0In) : that.amount0In != null) return false;
-            if (amount1In != null ? !amount1In.equals(that.amount1In) : that.amount1In != null) return false;
-            if (amount0Out != null ? !amount0Out.equals(that.amount0Out) : that.amount0Out != null) return false;
-            if (amount1Out != null ? !amount1Out.equals(that.amount1Out) : that.amount1Out != null) return false;
-            return to != null ? to.equals(that.to) : that.to == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = sender != null ? sender.hashCode() : 0;
-            result = 31 * result + (amount0In != null ? amount0In.hashCode() : 0);
-            result = 31 * result + (amount1In != null ? amount1In.hashCode() : 0);
-            result = 31 * result + (amount0Out != null ? amount0Out.hashCode() : 0);
-            result = 31 * result + (amount1Out != null ? amount1Out.hashCode() : 0);
-            result = 31 * result + (to != null ? to.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Swap{" +
-                    "spender=" + sender +
-                    ", amount0In=" + amount0In +
-                    ", amount1In=" + amount1In +
-                    ", amount0Out=" + amount0Out +
-                    ", amount1Out=" + amount1Out +
-                    ", to=" + to +
-                    '}';
-        }
-
     }
 
     class MintEvent implements Event {
@@ -578,55 +500,6 @@ public class NulswapPair implements Contract{
             this.sender = sender;
             this.amount0 = amount0;
             this.amount1 = amount1;
-        }
-
-        public Address getSender() {
-            return sender;
-        }
-
-        public void setSender(Address sender) {
-            this.sender = sender;
-        }
-
-        public BigInteger getAmount0() {
-            return amount0;
-        }
-
-        public void setAmount0(BigInteger amount0) {
-            this.amount0 = amount0;
-        }
-
-        public BigInteger getAmount1() {
-            return amount1;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            MintEvent that = (MintEvent) o;
-
-            if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
-            if (amount0 != null ? !amount0.equals(that.amount0) : that.amount0 != null) return false;
-            return amount1 != null ? amount1.equals(that.amount1) : that.amount1 == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = sender != null ? sender.hashCode() : 0;
-            result = 31 * result + (amount0 != null ? amount0.hashCode() : 0);
-            result = 31 * result + (amount1 != null ? amount1.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Mint{" +
-                    "spender=" + sender +
-                    ", amount0=" + amount0 +
-                    ", amount1=" + amount1 +
-                    '}';
         }
 
     }
@@ -646,67 +519,6 @@ public class NulswapPair implements Contract{
             this.amount1 = amount1;
             this.to      = to;
         }
-
-        public Address getSender() {
-            return sender;
-        }
-
-        public void setSender(Address sender) {
-            this.sender = sender;
-        }
-
-        public BigInteger getAmount0() {
-            return amount0;
-        }
-
-        public void setAmount0(BigInteger amount0) {
-            this.amount0 = amount0;
-        }
-
-        public BigInteger getAmount1() {
-            return amount1;
-        }
-
-        public void setTo(Address to) {
-            this.to = to;
-        }
-
-        public BigInteger getTo() {
-            return to;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            BurnEvent that = (BurnEvent) o;
-
-            if (sender != null ? !sender.equals(that.sender) : that.sender != null) return false;
-            if (amount0 != null ? !amount0.equals(that.amount0) : that.amount0 != null) return false;
-            if (amount1 != null ? !amount1.equals(that.amount0) : that.amount1 != null) return false;
-            return to != null ? to.equals(that.amount1) : that.to == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = sender != null ? sender.hashCode() : 0;
-            result = 31 * result + (amount0 != null ? amount0.hashCode() : 0);
-            result = 31 * result + (amount1 != null ? amount1.hashCode() : 0);
-            result = 31 * result + (to != null ? to.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Burn{" +
-                    "spender=" + sender +
-                    ", amount0=" + amount0 +
-                    ", amount1=" + amount1 +
-                    ", to="+ to +
-                    '}';
-        }
-
     }
 
     class SyncEvent implements Event {
@@ -720,47 +532,6 @@ public class NulswapPair implements Contract{
         public SyncEvent(@Required BigInteger reserve0, @Required BigInteger reserve1) {
             this.reserve0 = reserve0;
             this.reserve1 = reserve1;
-        }
-
-        public BigInteger getReserve0() {
-            return reserve0;
-        }
-        public void setReserve0(BigInteger reserve0) {
-            this.reserve0 = reserve0;
-        }
-
-        public BigInteger getReserve1() {
-            return reserve1;
-        }
-
-        public void setReserve1(BigInteger reserve1) {
-            this.reserve1 = reserve1;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            SyncEvent that = (SyncEvent) o;
-
-            if (reserve0 != null ? !reserve1.equals(that.reserve0) : that.reserve0 != null) return false;
-            return reserve1 != null ? !reserve1.equals(that.reserve1) : that.reserve1 != null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = reserve0 != null ? reserve0.hashCode() : 0;
-            result = 31 * result + (reserve1 != null ? reserve1.hashCode() : 0);
-            return result;
-        }
-
-        @Override
-        public String toString() {
-            return "Sync{" +
-                    "amount0="   + reserve0 +
-                    ", amount1=" + reserve1 +
-                    '}';
         }
 
     }

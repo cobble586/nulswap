@@ -1,19 +1,11 @@
 import io.nuls.contract.sdk.*;
-import io.nuls.contract.sdk.annotation.Payable;
-import io.nuls.contract.sdk.annotation.Required;
-import io.nuls.contract.sdk.annotation.View;
-import org.checkerframework.checker.units.qual.A;
-import io.nuls.contract.sdk.event.DebugEvent;
 import io.nuls.contract.sdk.annotation.*;
-import io.nuls.contract.sdk.Utils.*;
+import io.nuls.contract.sdk.event.DebugEvent;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import static io.nuls.contract.sdk.Utils.emit;
 import static io.nuls.contract.sdk.Utils.require;
 
 
@@ -2141,7 +2133,7 @@ public class NulswapRouter extends Ownable implements Contract{
         if(_wAssets.get(chainId) == null || _wAssets.get(chainId).get(assetId) == null){
             // Utils.emit(new DebugEvent("clinitTest log114", assetId + ", " + ", " + ", "));
 
-            String _asset =  Utils.deploy(new String[]{ "wasset", "wS"+BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgmfUyJppgN5Y9KSFLPc4shpWrzqGnN"), new String[]{"wAsset", "wAsset", "1", "8", String.valueOf(chainId), String.valueOf(assetId), Msg.address().toString()});
+            String _asset =  Utils.deploy(new String[]{ "wasset", "wS"+BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgmfUyJppgN5Y9KSFLPc4shpWrzqGnN"), new String[]{"wAsset", "wAsset", "8", String.valueOf(chainId), String.valueOf(assetId)});
             Map<Integer, Address> a ;
             if(_wAssets.get(chainId) == null ){
                 a = new HashMap<>();
