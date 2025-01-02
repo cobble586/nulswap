@@ -28,7 +28,8 @@ public class NulswapFactory extends Ownable implements Contract{
 
     private Address feeTo;                                                                                  //
     private Address feeToSetter;                                                                            //
-    private static Address BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");              // Burner Address Contract
+    private final Address BURNER_ADDR;              // Burner Address Contract
+    private Address pairCopy;              // pairCopy Contract
 
     private Map<Address, Map<Address, Address>> getPair = new HashMap<Address, Map<Address, Address>>();    // Token Pair Mapping
 
@@ -38,6 +39,13 @@ public class NulswapFactory extends Ownable implements Contract{
     public NulswapFactory(Address _feeToSetter){
         feeToSetter = _feeToSetter;
         feeTo       = _feeToSetter;
+        if (Msg.sender().toString().startsWith("NULS")) {
+            BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
+            pairCopy = new Address("tNULSeBaMwA3LyuxDoohgoeH4AzrJbodyM3Rjc");//TODO deploy on mainNet
+        } else {
+            BURNER_ADDR = new Address("tNULSeBaN5nddf9WkQgRr3RNwARgryndv2Bzs6");
+            pairCopy = new Address("tNULSeBaMwA3LyuxDoohgoeH4AzrJbodyM3Rjc");
+        }
     }
 
     /**
@@ -69,7 +77,7 @@ public class NulswapFactory extends Ownable implements Contract{
         require(getPair.get(token0) == null || getPair.get(token0).get(token1) == null, "NulswapV3: PAIR_EXISTS"); // single check is sufficient
 
 
-        String pairAddr =  Utils.deploy(new String[]{ "pair", token0.toString(), token1.toString()}, new Address("NULSd6Hgw916TK3TdH7i6ashb317VQkjxAiZD"), new String[]{});
+        String pairAddr =  Utils.deploy(new String[]{ "pair", token0.toString(), token1.toString()}, pairCopy, new String[]{});
         Address pair = new Address(pairAddr);
 
         initialize(pair, token0, token1);

@@ -31,7 +31,6 @@ public class NulswapPair implements Contract{
 
     /** Constants **/
     private static BigInteger MINIMUM_LIQUIDITY = BigInteger.valueOf(1_000);                            // Minimum Liquidity
-    private static Address BURNER_ADDR          = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burner Address
     private static BigInteger Q112              = BigInteger.valueOf(2).pow(112);                       // 2^112
     private static BigInteger Q112_1             = Q112.subtract(BigInteger.ONE);                       // 2^112 - 1
     private static BigInteger Q32              = BigInteger.valueOf(2).pow(32);                       // 2^32
@@ -40,6 +39,8 @@ public class NulswapPair implements Contract{
     private static BigInteger TWO            = BigInteger.valueOf(2);                          // Two
     private static BigInteger ONE_THOUSAND   = BigInteger.valueOf(1000);                       // One Thousand
 
+    private final Address BURNER_ADDR; // Burner Address
+    private final Address lpTokenCopy; // lpTokenCopy Address
     /** Variables **/
     private Address factory;                    // Factory Address
     private Address lp;                         // Lp Token
@@ -87,6 +88,13 @@ public class NulswapPair implements Contract{
         price1CumulativeLast =  BigInteger.ZERO;
         kLast                = BigInteger.ZERO;
         blockTimestampLast   = BigInteger.ZERO;
+        if (Msg.sender().toString().startsWith("NULS")) {
+            BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
+            lpTokenCopy = new Address("tNULSeBaN8ZgACDuQJB6xFwunCV8P9DfGLLRFX");//TODO deploy on mainNet
+        } else {
+            BURNER_ADDR = new Address("tNULSeBaN5nddf9WkQgRr3RNwARgryndv2Bzs6");
+            lpTokenCopy = new Address("tNULSeBaN8ZgACDuQJB6xFwunCV8P9DfGLLRFX");
+        }
     }
 
     /**
@@ -104,7 +112,7 @@ public class NulswapPair implements Contract{
         token0 = _token0;
         token1 = _token1;
 
-        String _asset = Utils.deploy(new String[]{ "lp", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgqveRoAvXCF996wb2nPE7SZs9Yehjz"), new String[]{"Nulswap_lp", "NSWAP_LP", "8"});
+        String _asset = Utils.deploy(new String[]{ "lp", "i"+ BigInteger.valueOf(Block.timestamp()).toString()}, lpTokenCopy, new String[]{"Nulswap_lp", "NSWAP_LP", "8"});
         this.lp = new Address(_asset);
     }
 

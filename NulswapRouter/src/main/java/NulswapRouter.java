@@ -22,7 +22,8 @@ public class NulswapRouter extends Ownable implements Contract{
     /** Constants **/
     private static final BigInteger BASIS_POINTS        = BigInteger.valueOf(10000);                            // Math Helper for percentages
     private static final BigInteger MIN_TRANSFERABLE    = BigInteger.valueOf(1000000);                          // Minimum Transferable Amount
-    private static       Address    BURNER_ADDR         = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn"); // Burn Address
+    private final Address BURNER_ADDR; // Burn Address
+    private final Address wAssetCopy; // wAssetCopy Address
 
     /** Variables **/
     private Address factory;                                                            // Factory
@@ -42,18 +43,25 @@ public class NulswapRouter extends Ownable implements Contract{
      * @param _factory Factory Address
      * @param _WNULS   WNULS Address
      */
-    public NulswapRouter(Address _factory, Address _WNULS){
+    public NulswapRouter(Address _factory, Address _WNULS, Address _treasury){
 
-        require(_factory != null && _WNULS != null, "Invalid factory and wnuls");
+        require(_factory != null && _WNULS != null && _treasury != null, "Invalid factory and wnuls");
 
         factory     = _factory;
         WNULS       = _WNULS;
+        treasury    = _treasury;
         _wAssets    = new HashMap<Integer, Map<Integer, Address>>();
         blacklist   = new HashMap<Address, Boolean>();
         platformFee = BigInteger.valueOf(100);          // 1% platform fee
         refFee      = BigInteger.valueOf(50);           // 0.5% referral fee
         paused      = false;
-        treasury    = new Address("NULSd6HgWQmksNqLFzhsLbxrTxdHbAvH4S1my");
+        if (Msg.sender().toString().startsWith("NULS")) {
+            BURNER_ADDR = new Address("NULSd6HgsVSzCAJwLYBjvfP3NwbKCvV525GWn");
+            wAssetCopy = new Address("tNULSeBaN3wdVVnKDcUm9HWbxtuhWeofkPngjb");//TODO deploy on mainNet
+        } else {
+            BURNER_ADDR = new Address("tNULSeBaN5nddf9WkQgRr3RNwARgryndv2Bzs6");
+            wAssetCopy = new Address("tNULSeBaN3wdVVnKDcUm9HWbxtuhWeofkPngjb");
+        }
     }
 
     /**
@@ -216,7 +224,7 @@ public class NulswapRouter extends Ownable implements Contract{
      *
      * @param token Token Address
      * @param amountTokenDesired Amount A
-     * @param amounttokenMin
+     * @param amountTokenMin
      * @param amountETHMin
      * @param to
      * @param deadline
@@ -1847,6 +1855,57 @@ public class NulswapRouter extends Ownable implements Contract{
         return amounts;
     }
 
+    @View
+    public Address getFactory() {
+        return factory;
+    }
+
+    @View
+    public Address getWNULS() {
+        return WNULS;
+    }
+
+    @View
+    public Address getTreasury() {
+        return treasury;
+    }
+
+    @View
+    public BigInteger getPlatformFee() {
+        return platformFee;
+    }
+
+    @View
+    public BigInteger getRefFee() {
+        return refFee;
+    }
+
+    @View
+    public Boolean getPaused() {
+        return paused;
+    }
+
+    @View
+    public boolean getBlacklist(Address address) {
+        Boolean b = blacklist.get(address);
+        if (b == null) {
+            return false;
+        }
+        return b;
+    }
+
+    @View
+    public String getWAsset(int chainId, int assetId) {
+        Map<Integer, Address> map = _wAssets.get(chainId);
+        if (map == null) {
+            return "";
+        }
+        Address address = map.get(assetId);
+        if (address == null) {
+            return "";
+        }
+        return address.toString();
+    }
 
     /**
      *
@@ -2133,20 +2192,34 @@ public class NulswapRouter extends Ownable implements Contract{
         if(_wAssets.get(chainId) == null || _wAssets.get(chainId).get(assetId) == null){
             // Utils.emit(new DebugEvent("clinitTest log114", assetId + ", " + ", " + ", "));
 
-            String _asset =  Utils.deploy(new String[]{ "wasset", "wS"+BigInteger.valueOf(Block.timestamp()).toString()}, new Address("NULSd6HgmfUyJppgN5Y9KSFLPc4shpWrzqGnN"), new String[]{"wAsset", "wAsset", "8", String.valueOf(chainId), String.valueOf(assetId)});
-            Map<Integer, Address> a ;
-            if(_wAssets.get(chainId) == null ){
+            String _asset =  Utils.deploy(new String[]{ "wasset", "wS"+BigInteger.valueOf(Block.timestamp()).toString()}, wAssetCopy, new String[]{"wAsset", "wAsset", "8", String.valueOf(chainId), String.valueOf(assetId)});
+            Map<Integer, Address> a = _wAssets.get(chainId);
+            if (a == null) {
                 a = new HashMap<>();
-            }else{
-                a = _wAssets.get(chainId);
+                _wAssets.put(chainId, a);
             }
-
             a.put(assetId, new Address(_asset));
-            _wAssets.put(chainId, a);
+
         }
         //Utils.emit(new DebugEvent("clinitTest log411", assetId + ", " + ", " + ", "));
 
         return _wAssets.get(chainId).get(assetId);
+    }
+
+    public void setWAsset(int[] chainIds, int[] assetIds, String[] wAssets){
+        onlyOwner();
+        require(chainIds.length == assetIds.length && assetIds.length == wAssets.length, "array length error");
+        for (int i = 0, length = chainIds.length; i < length; i++) {
+            int chainId = chainIds[i];
+            int assetId = assetIds[i];
+            String wAsset = wAssets[i];
+            Map<Integer, Address> map = _wAssets.get(chainId);
+            if (map == null) {
+                map = new HashMap<>();
+                _wAssets.put(chainId, map);
+            }
+            map.put(assetId, new Address(wAsset));
+        }
     }
 
     /**
