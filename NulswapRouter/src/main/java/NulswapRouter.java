@@ -2112,13 +2112,12 @@ public class NulswapRouter extends Ownable implements Contract{
         require(v.compareTo(MIN_TRANSFERABLE) >= 0, "Min nuls transfer not met");
 
         /*create approve to transfer tokens to the wnuls contract*/
-        String[][] argsApprove = new String[][]{new String[]{WNULS.toString()}, new String[]{v.toString()}};
-        String rApprove = WNULS.callWithReturnValue("approve", null, argsApprove, BigInteger.ZERO);
-
-        require(new Boolean(rApprove), "NulswapRouter: Approve did not succeeded!");
+        //String[][] argsApprove = new String[][]{new String[]{WNULS.toString()}, new String[]{v.toString()}};
+        //String rApprove = WNULS.callWithReturnValue("approve", null, argsApprove, BigInteger.ZERO);
+        //require(new Boolean(rApprove), "NulswapRouter: Approve did not succeeded!");
 
         //Create arguments and call the withdraw function
-        String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.sender().toString()}};
+        String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.address().toString()}};
         String rWithdraw = WNULS.callWithReturnValue("withdraw", "", args, BigInteger.ZERO);
 
         //Require that the withdraw was successful
@@ -2174,7 +2173,7 @@ public class NulswapRouter extends Ownable implements Contract{
 
        // require(new Boolean(rApprove), "NulswapV1: Approve did not succeeded!");
         //Utils.emit(new DebugEvent("clinitTest log3-3", "JJ "+v+" "+ Msg.sender()+ getTokenBalance(Msg.address(), wAsset)));
-        String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.sender().toString()}};
+        String[][] args = new String[][]{new String[]{v.toString()}, new String[]{Msg.address().toString()}};
         String rWithdraw = wAsset.callWithReturnValue("withdraw", null, args, BigInteger.ZERO);
         require(new Boolean(rWithdraw), "NulswapV1: Withdraw did not succeed");
     }
